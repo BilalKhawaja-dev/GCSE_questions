@@ -1,4 +1,9 @@
+# ============================================================================
+# GCSE Question Generator - .gitignore
+# ============================================================================
+
 # Python
+# --------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,17 +21,19 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
-
-# PyInstaller
 *.manifest
 *.spec
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Testing & Coverage
+# ------------------
 htmlcov/
 .tox/
 .nox/
@@ -39,25 +46,116 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
-cover/
+test-results/
+test-reports/
 
-# Environments
+# Environment & Configuration
+# ---------------------------
 .env
+.env.local
+.env.development
+.env.test
+.env.production
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.python-version
 
-# IDEs
+# Node.js & Frontend
+# ------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+.pnp
+.pnp.js
+frontend/build/
+frontend/dist/
+frontend/.next/
+frontend/out/
+
+# AWS & Terraform
+# ---------------
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+terraform.tfplan
+terraform.tfstate.backup
+*.zip
+lambda-functions.zip
+gcse_deployment_*.zip
+
+# AWS Credentials & Config
+aws-credentials.json
+.aws/
+*.pem
+*.key
+
+# S3 & CloudFormation
+cloudformation-template.json
+s3-bucket-policy.json
+
+# IDE & Editor
+# ------------
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
+Thumbs.db
 
-# OS
+# Logs & Temporary Files
+# ----------------------
+*.log
+logs/
+temp/
+tmp/
+*.tmp
+*.temp
+debug.log
+error.log
+access.log
+
+# Application Specific
+# --------------------
+# Cache and result files
+cache_clear_results.json
+architecture_validation_results.json
+cache_fix_test_results.json
+upload_report.json
+bulk_upload_test_report.json
+validation_results.json
+*_test_results_*.json
+*_validation_*.json
+*_analysis_*.json
+
+# Generated content
+generated_questions.json
+processed_content/
+uploaded_content/
+
+# PDF processing temporary files
+pdf_temp/
+extracted_content/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentation builds
+docs/_build/
+site/
+
+# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -66,38 +164,67 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# AWS
-.aws/
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Security & Sensitive Data
+# -------------------------
+secrets.json
+api-keys.json
 *.pem
+*.key
+*.crt
+*.p12
+*.pfx
+config/secrets/
 
-# Terraform
-*.tfstate
-*.tfstate.*
-.terraform/
-.terraform.lock.hcl
-terraform.tfvars
-*.tfplan
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
 
-# Logs
-*.log
-logs/
+# Compiled binaries
+*.exe
+*.dll
+*.dylib
 
-# Temporary files
-tmp/
-temp/
-# Added by cleanup script
-# Temporary test results
-*_test_results_*.json
-*_validation_*.json
-*_analysis_*.json
-cache_clear_results.json
-# Debug and temporary files
-debug_*.py
-temp_*.py
-*_temp.json
-# HTML test files
-test_*.html
-# Temporary reports
-*_20*_*.json
-upload_report.json
-bulk_upload_test_report.json
+# Archives
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Local development overrides
+docker-compose.override.yml
+.env.override
+
+# Kiro IDE files (if any remain)
+.kiro/
