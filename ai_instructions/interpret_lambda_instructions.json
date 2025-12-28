@@ -1,0 +1,128 @@
+{
+  "agent_name": "InterpretLambda",
+  "role": "Query Interpretation Specialist",
+  "version": "1.0",
+  "last_updated": "2025-12-28T18:29:33.470659",
+  "instructions": {
+    "primary_task": "Parse natural language queries into structured intents for GCSE question generation",
+    "parsing_guidelines": [
+      "Extract topic (Number, Algebra, Geometry, Statistics, Probability, Ratio)",
+      "Identify tier (Foundation, Higher, or both)",
+      "Determine question count (default: 3, max: 10)",
+      "Assess confidence level (0.0-1.0)",
+      "Handle ambiguous queries by asking for clarification"
+    ],
+    "topic_keywords": {
+      "Number": [
+        "fraction",
+        "decimal",
+        "percentage",
+        "number",
+        "arithmetic",
+        "calculation"
+      ],
+      "Algebra": [
+        "equation",
+        "algebra",
+        "solve",
+        "quadratic",
+        "linear",
+        "simultaneous",
+        "formula"
+      ],
+      "Geometry": [
+        "angle",
+        "shape",
+        "area",
+        "perimeter",
+        "trigonometry",
+        "pythagoras",
+        "geometry"
+      ],
+      "Statistics": [
+        "mean",
+        "median",
+        "mode",
+        "range",
+        "data",
+        "graph",
+        "chart",
+        "statistics"
+      ],
+      "Probability": [
+        "probability",
+        "chance",
+        "random",
+        "outcome",
+        "likely",
+        "event"
+      ],
+      "Ratio": [
+        "ratio",
+        "proportion",
+        "scale",
+        "share",
+        "divide"
+      ]
+    },
+    "tier_detection": {
+      "Foundation": [
+        "foundation",
+        "basic",
+        "simple",
+        "easy",
+        "grade 1-5"
+      ],
+      "Higher": [
+        "higher",
+        "advanced",
+        "complex",
+        "difficult",
+        "grade 6-9"
+      ],
+      "both": [
+        "mixed",
+        "all levels",
+        "any tier"
+      ]
+    },
+    "confidence_scoring": {
+      "high_confidence": "Clear topic and tier identification with specific keywords",
+      "medium_confidence": "Topic clear but tier ambiguous, or vice versa",
+      "low_confidence": "Ambiguous query requiring clarification"
+    },
+    "error_handling": [
+      "For unclear queries, return confidence < 0.7 and suggest clarification",
+      "For invalid topics, suggest closest valid topic",
+      "For excessive question counts, cap at 10 and warn user"
+    ],
+    "response_format": {
+      "topic": "One of: Number, Algebra, Geometry, Statistics, Probability, Ratio",
+      "tier": "One of: Foundation, Higher, both",
+      "count": "Integer between 1-10",
+      "confidence": "Float between 0.0-1.0",
+      "clarification_needed": "Boolean - true if query is ambiguous"
+    }
+  },
+  "examples": [
+    {
+      "query": "Generate 3 Foundation fractions questions",
+      "expected_output": {
+        "topic": "Number",
+        "tier": "Foundation",
+        "count": 3,
+        "confidence": 0.95
+      }
+    },
+    {
+      "query": "I need some algebra questions",
+      "expected_output": {
+        "topic": "Algebra",
+        "tier": "both",
+        "count": 3,
+        "confidence": 0.7,
+        "clarification_needed": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "title": "Content Upload Guidelines for GCSE Question Generator",
+  "version": "1.0",
+  "last_updated": "2025-12-28T18:29:33.470906",
+  "upload_destinations": {
+    "specifications": {
+      "bucket": "gcse-specifications-prod-1a64dc99",
+      "purpose": "Curriculum specifications and learning objectives",
+      "format": "JSON files organized by domain/subtopic",
+      "path_structure": "specifications/{domain}/{subtopic}_latest.json"
+    },
+    "examples": {
+      "bucket": "gcse-examples-prod-1a64dc99",
+      "purpose": "Example questions and mark schemes for AI reference",
+      "format": "JSON files with question arrays",
+      "path_structure": "examples/{domain}/{subtopic}.json"
+    },
+    "instructions": {
+      "bucket": "gcse-ai-instructions-prod",
+      "purpose": "AI agent instructions and prompting guides",
+      "format": "JSON instruction documents",
+      "path_structure": "instructions/{agent_name}_instructions.json"
+    }
+  },
+  "pdf_processing_workflow": [
+    "1. Collect PDFs from official sources (Edexcel, AQA, OCR)",
+    "2. Organize in local directory structure",
+    "3. Run: python bulk_pdf_upload_system.py /path/to/pdfs",
+    "4. System automatically processes and uploads to correct S3 buckets",
+    "5. Verify upload with: python check_s3_content.py",
+    "6. Test AI integration with: python validate_ai_integration.py"
+  ],
+  "content_requirements": {
+    "specifications": [
+      "Learning objectives for each topic",
+      "Key concepts and terminology",
+      "Assessment objectives (AO1, AO2, AO3)",
+      "Common misconceptions",
+      "Mark ranges and difficulty indicators"
+    ],
+    "examples": [
+      "Variety of question types per topic",
+      "Both Foundation and Higher tier questions",
+      "Complete mark schemes with method/accuracy marks",
+      "Quality scoring for AI reference",
+      "Verification status for reliability"
+    ]
+  },
+  "quality_standards": {
+    "mathematical_accuracy": "All content must be mathematically correct",
+    "curriculum_alignment": "Must match current GCSE specifications",
+    "accessibility": "Clear language appropriate for target age group",
+    "completeness": "Include all required components (questions, marks, schemes)",
+    "uniqueness": "Avoid duplicate content across uploads"
+  }
+}
