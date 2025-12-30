@@ -1,0 +1,59 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo "Installing deployment dependencies..."
+      - pip install --upgrade pip
+      - pip install boto3 botocore
+      - curl -fsSL https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip -o terraform.zip
+      - unzip terraform.zip
+      - mv terraform /usr/local/bin/
+      - terraform --version
+      - echo "Deployment dependencies installed"
+  
+  pre_build:
+    commands:
+      - echo "Pre-deployment phase started on `date`"
+      - echo "Validating Terraform configuration..."
+      - cd terraform
+      - terraform init -backend=false
+      - terraform validate
+      - cd ..
+      - echo "Terraform validation completed"
+  
+  build:
+    commands:
+      - echo "Deployment phase started on `date`"
+      - echo "Packaging Lambda functions..."
+      - python scripts/package_lambda.py
+      - echo "Uploading Lambda packages to S3..."
+      - python scripts/upload_lambda_package.py
+      - echo "Deploying infrastructure with Terraform..."
+      - cd terraform
+      - terraform init
+      - terraform plan -var-file="environments/prod.tfvars" -out=tfplan
+      - terraform apply -auto-approve tfplan
+      - cd ..
+      - echo "Infrastructure deployment completed"
+  
+  post_build:
+    commands:
+      - echo "Post-deployment phase started on `date`"
+      - echo "Running system validation..."
+      - python validate_system.py
+      - echo "Deployment validation completed"
+      - echo "Deployment completed successfully on `date`"
+
+artifacts:
+  files:
+    - 'terraform/terraform.tfstate'
+    - 'deployment-report.json'
+  name: gcse-deployment-$(date +%Y-%m-%d)
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - 'terraform/.terraform/**/*'
