@@ -119,24 +119,24 @@ const SessionHistoryPage: React.FC = () => {
           <h2>Your Statistics</h2>
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-value">{statistics.total_sessions}</div>
+              <div className="stat-value">{statistics.total_sessions || 0}</div>
               <div className="stat-label">Total Sessions</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">{statistics.recent_sessions_7_days}</div>
+              <div className="stat-value">{statistics.recent_sessions_7_days || 0}</div>
               <div className="stat-label">Recent Sessions (7 days)</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">{statistics.total_questions_generated}</div>
+              <div className="stat-value">{statistics.total_questions_generated || 0}</div>
               <div className="stat-label">Questions Generated</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">{statistics.average_questions_per_session.toFixed(1)}</div>
+              <div className="stat-value">{(statistics.average_questions_per_session || 0).toFixed(1)}</div>
               <div className="stat-label">Avg Questions/Session</div>
             </div>
           </div>
           
-          {statistics.most_common_topics.length > 0 && (
+          {statistics.most_common_topics && statistics.most_common_topics.length > 0 && (
             <div className="common-topics">
               <h3>Most Common Topics</h3>
               <div className="topic-list">

@@ -18,8 +18,22 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData }) => {
     }
   };
 
-  const getMarkSchemeForQuestion = (questionId: string) => {
-    return questionData.mark_scheme?.find(ms => ms.question_id === questionId);
+  const getMarkSchemeForQuestion = (question: QuestionResponse['questions'][0]) => {
+    // First try to find existing mark scheme
+    const existingScheme = questionData.mark_scheme?.find(ms => ms.question_id === question.id);
+    if (existingScheme) return existingScheme;
+    
+    // Generate a basic mark scheme if none exists
+    const marks = question.marks || 4;
+    const methodMarks = Math.ceil(marks * 0.6);
+    const accuracyMarks = marks - methodMarks;
+    
+    return {
+      question_id: question.id,
+      marking_criteria: `Award ${methodMarks} method mark(s) for correct working shown. Award ${accuracyMarks} accuracy mark(s) for correct final answer.`,
+      method_marks: methodMarks,
+      accuracy_marks: accuracyMarks
+    };
   };
 
   // Calculate total marks from questions if metadata is not available
@@ -47,7 +61,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData }) => {
 
       <div className="questions-list">
         {questionData.questions.map((question, index) => {
-          const markScheme = getMarkSchemeForQuestion(question.id);
+          const markScheme = getMarkSchemeForQuestion(question);
           
           return (
             <QuestionItem
