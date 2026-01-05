@@ -1,0 +1,40 @@
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.2rem;
+  color: white;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.theme-icon {
+  display: block;
+  line-height: 1;
+}
+
+/* Pink floral theme specific styles */
+.theme-pink-floral .theme-toggle {
+  background: rgba(255, 182, 193, 0.3);
+  border-color: rgba(255, 182, 193, 0.5);
+}
+
+.theme-pink-floral .theme-toggle:hover {
+  background: rgba(255, 182, 193, 0.5);
+  border-color: rgba(255, 182, 193, 0.7);
+}

@@ -1,0 +1,347 @@
+/* Theme System CSS */
+
+/* Default Theme (existing styles) */
+.theme-default {
+  /* Default theme uses existing styles */
+}
+
+/* Pink Floral Theme */
+.theme-pink-floral {
+  /* Background colors */
+  background-color: #fdf2f8;
+}
+
+.theme-pink-floral .App {
+  background-color: #fdf2f8;
+}
+
+/* Header styling for pink floral theme */
+.theme-pink-floral .App-header {
+  background: linear-gradient(135deg, #f8bbd9 0%, #e879f9 50%, #f472b6 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-pink-floral .App-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Navigation links for pink floral theme */
+.theme-pink-floral .nav-link {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 0.5rem 1.2rem;
+  backdrop-filter: blur(10px);
+}
+
+.theme-pink-floral .nav-link:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.theme-pink-floral .nav-link.active {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Buttons for pink floral theme */
+.theme-pink-floral .logout-btn {
+  background: rgba(255, 182, 193, 0.3);
+  border: 1px solid rgba(255, 182, 193, 0.5);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.theme-pink-floral .logout-btn:hover {
+  background: rgba(255, 182, 193, 0.5);
+  border-color: rgba(255, 182, 193, 0.7);
+  transform: translateY(-1px);
+}
+
+/* Main content area */
+.theme-pink-floral .App-main {
+  background: linear-gradient(
+    to bottom,
+    rgba(253, 242, 248, 0.8) 0%,
+    rgba(252, 231, 243, 0.6) 50%,
+    rgba(251, 207, 232, 0.4) 100%
+  );
+  position: relative;
+}
+
+.theme-pink-floral .App-main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f8bbd9' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* Footer for pink floral theme */
+.theme-pink-floral .App-footer {
+  background: linear-gradient(135deg, #be185d 0%, #db2777 100%);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Cards and containers */
+.theme-pink-floral .query-input-container,
+.theme-pink-floral .question-display,
+.theme-pink-floral .session-card,
+.theme-pink-floral .coverage-card,
+.theme-pink-floral .auth-form {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(244, 114, 182, 0.2);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(244, 114, 182, 0.1);
+}
+
+.theme-pink-floral .query-input-container:hover,
+.theme-pink-floral .question-display:hover,
+.theme-pink-floral .session-card:hover,
+.theme-pink-floral .coverage-card:hover {
+  border-color: rgba(244, 114, 182, 0.3);
+  box-shadow: 0 12px 40px rgba(244, 114, 182, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Form elements */
+.theme-pink-floral input,
+.theme-pink-floral select,
+.theme-pink-floral textarea {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(244, 114, 182, 0.2);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.theme-pink-floral input:focus,
+.theme-pink-floral select:focus,
+.theme-pink-floral textarea:focus {
+  border-color: #f472b6;
+  box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.1);
+  outline: none;
+}
+
+/* Primary buttons */
+.theme-pink-floral .btn-primary,
+.theme-pink-floral .generate-btn,
+.theme-pink-floral .export-btn {
+  background: linear-gradient(135deg, #f472b6 0%, #e879f9 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(244, 114, 182, 0.3);
+}
+
+.theme-pink-floral .btn-primary:hover,
+.theme-pink-floral .generate-btn:hover,
+.theme-pink-floral .export-btn:hover {
+  background: linear-gradient(135deg, #ec4899 0%, #d946ef 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(244, 114, 182, 0.4);
+}
+
+/* Secondary buttons */
+.theme-pink-floral .btn-secondary {
+  background: rgba(244, 114, 182, 0.1);
+  border: 2px solid rgba(244, 114, 182, 0.3);
+  border-radius: 12px;
+  color: #be185d;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.theme-pink-floral .btn-secondary:hover {
+  background: rgba(244, 114, 182, 0.2);
+  border-color: rgba(244, 114, 182, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Error messages */
+.theme-pink-floral .error-message {
+  background: rgba(252, 165, 165, 0.2);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #dc2626;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.theme-pink-floral .error-dismiss {
+  color: #dc2626;
+  background: rgba(248, 113, 113, 0.1);
+  border-radius: 50%;
+}
+
+.theme-pink-floral .error-dismiss:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+/* Success messages */
+.theme-pink-floral .success-message {
+  background: rgba(167, 243, 208, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #059669;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+/* Loading states */
+.theme-pink-floral .loading-spinner {
+  border-color: rgba(244, 114, 182, 0.2);
+  border-top-color: #f472b6;
+}
+
+/* Question display specific styling */
+.theme-pink-floral .question-item {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(244, 114, 182, 0.15);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.theme-pink-floral .question-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(244, 114, 182, 0.25);
+  box-shadow: 0 4px 16px rgba(244, 114, 182, 0.1);
+}
+
+/* Feedback buttons */
+.theme-pink-floral .feedback-btn-helpful {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 8px;
+  color: white;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.theme-pink-floral .feedback-btn-helpful:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+}
+
+.theme-pink-floral .feedback-btn-not-helpful {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-radius: 8px;
+  color: white;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.theme-pink-floral .feedback-btn-not-helpful:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-1px);
+}
+
+/* Coverage dashboard styling */
+.theme-pink-floral .coverage-heatmap {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  border: 1px solid rgba(244, 114, 182, 0.2);
+}
+
+.theme-pink-floral .coverage-cell {
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.theme-pink-floral .coverage-cell:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(244, 114, 182, 0.3);
+}
+
+/* Session history styling */
+.theme-pink-floral .session-list {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.theme-pink-floral .session-item {
+  border-bottom: 1px solid rgba(244, 114, 182, 0.1);
+  transition: all 0.3s ease;
+}
+
+.theme-pink-floral .session-item:hover {
+  background: rgba(244, 114, 182, 0.05);
+}
+
+/* Responsive adjustments for pink floral theme */
+@media (max-width: 768px) {
+  .theme-pink-floral .App-header {
+    background: linear-gradient(135deg, #f8bbd9 0%, #e879f9 100%);
+  }
+  
+  .theme-pink-floral .nav-link {
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .theme-pink-floral .nav-link {
+    border-radius: 8px;
+    padding: 0.5rem;
+  }
+  
+  .theme-pink-floral .btn-primary,
+  .theme-pink-floral .generate-btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Floral decorative elements */
+.theme-pink-floral .App-header::after {
+  content: '🌸 🌺 🌸';
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 1.5rem;
+  opacity: 0.3;
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Additional floral accents */
+.theme-pink-floral .question-display::before {
+  content: '🌸';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 1.2rem;
+  opacity: 0.4;
+}
+
+.theme-pink-floral .session-card::before {
+  content: '🌺';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1rem;
+  opacity: 0.3;
+}
