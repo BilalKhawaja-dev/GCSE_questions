@@ -318,6 +318,28 @@
   font-size: 0.9rem;
 }
 
+/* Answer Section */
+.answer-section {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-left: 4px solid #48bb78;
+}
+
+.answer-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2e7d32;
+  font-size: 1rem;
+}
+
+.answer-content {
+  color: #1b5e20;
+  font-size: 1rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

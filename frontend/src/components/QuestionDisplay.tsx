@@ -131,16 +131,18 @@ interface QuestionItemProps {
 const QuestionItem: React.FC<QuestionItemProps> = ({ question, markScheme, questionNumber, showAnswer }) => {
   // Format mathematical text for display
   const formatMathematicalText = (text: string): string => {
-    // The text should already be converted from LaTeX to plain text/Unicode by the backend
-    // We just need to ensure proper line breaks and spacing for readability
+    if (!text) return '';
+    // Handle line breaks and clean up whitespace
     return text
       .replace(/\n/g, '<br>')
-      .replace(/\s+/g, ' ')
       .trim();
   };
 
   // Handle both question_text and text field names
   const questionText = question.question_text || (question as any).text || 'Question text not available';
+  
+  // Get answer from question or mark scheme
+  const answer = (question as any).answer || (markScheme as any)?.answer || '';
 
   return (
     <div className="question-item">
@@ -170,38 +172,58 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, markScheme, quest
         </div>
       </div>
 
-      {/* Mark Scheme - controlled by parent's showAnswer state */}
-      {markScheme && showAnswer && (
+      {/* Answer & Mark Scheme - controlled by parent's showAnswer state */}
+      {showAnswer && (
         <div className="mark-scheme-section visible">
           <div className="mark-scheme-header">
-            <span>Answer & Mark Scheme</span>
+            <span>📝 Answer & Mark Scheme</span>
           </div>
           
           <div className="mark-scheme-content expanded">
             <div className="mark-scheme-details">
-              <div className="marking-criteria">
-                <h4>Marking Criteria:</h4>
-                <div 
-                  dangerouslySetInnerHTML={{
-                    __html: formatMathematicalText(markScheme.marking_criteria)
-                  }}
-                />
-              </div>
+              {/* Answer Section */}
+              {answer && (
+                <div className="answer-section">
+                  <h4>✓ Answer:</h4>
+                  <div 
+                    className="answer-content"
+                    dangerouslySetInnerHTML={{
+                      __html: formatMathematicalText(answer)
+                    }}
+                  />
+                </div>
+              )}
               
-              <div className="marks-breakdown">
-                <div className="marks-row">
-                  <span className="marks-label">Method marks:</span>
-                  <span className="marks-value">{markScheme.method_marks}</span>
-                </div>
-                <div className="marks-row">
-                  <span className="marks-label">Accuracy marks:</span>
-                  <span className="marks-value">{markScheme.accuracy_marks}</span>
-                </div>
-                <div className="marks-row total">
-                  <span className="marks-label">Total:</span>
-                  <span className="marks-value">{markScheme.method_marks + markScheme.accuracy_marks}</span>
-                </div>
-              </div>
+              {/* Marking Criteria */}
+              {markScheme && (
+                <>
+                  <div className="marking-criteria">
+                    <h4>Marking Guidance:</h4>
+                    <div 
+                      dangerouslySetInnerHTML={{
+                        __html: formatMathematicalText(
+                          markScheme.marking_criteria.replace(/^Answer:.*?\n\n/s, '')
+                        )
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="marks-breakdown">
+                    <div className="marks-row">
+                      <span className="marks-label">Method marks:</span>
+                      <span className="marks-value">{markScheme.method_marks}</span>
+                    </div>
+                    <div className="marks-row">
+                      <span className="marks-label">Accuracy marks:</span>
+                      <span className="marks-value">{markScheme.accuracy_marks}</span>
+                    </div>
+                    <div className="marks-row total">
+                      <span className="marks-label">Total:</span>
+                      <span className="marks-value">{markScheme.method_marks + markScheme.accuracy_marks}</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

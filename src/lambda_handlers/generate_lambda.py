@@ -137,7 +137,7 @@ def lambda_handler(event, context):
 def generate_questions_with_bedrock(topic: str, tier: str, count: int, enriched_prompt: str, request_id: str) -> list:
     """Generate questions using Bedrock Claude."""
     
-    # Build the prompt for question generation
+    # Build the prompt for question generation with answers
     prompt = f"""Generate {count} GCSE Mathematics exam questions for {tier} tier on the topic of {topic}.
 
 {enriched_prompt if enriched_prompt else ''}
@@ -146,13 +146,15 @@ For each question, provide:
 1. The question text (clear, exam-style wording)
 2. The number of marks (typically 2-6 marks)
 3. A difficulty score from 1-10
+4. The correct answer with full working/solution
 
 Return the questions as a JSON array with this structure:
 [
   {{
     "question_text": "The question text here",
     "marks": 4,
-    "difficulty_score": 5
+    "difficulty_score": 5,
+    "answer": "Step-by-step solution with final answer"
   }}
 ]
 
@@ -200,7 +202,8 @@ def parse_bedrock_response(response: str, topic: str, tier: str, request_id: str
                 'marks': q.get('marks', 4),
                 'topic': topic,
                 'tier': tier,
-                'difficulty_score': q.get('difficulty_score', 5)
+                'difficulty_score': q.get('difficulty_score', 5),
+                'answer': q.get('answer', '')  # Include the answer
             }
             questions.append(question)
         
@@ -281,11 +284,19 @@ def generate_mark_schemes(questions: list) -> list:
         method_marks = max(1, int(marks * 0.6))
         accuracy_marks = marks - method_marks
         
+        # Use the answer from the question if available
+        answer = question.get('answer', '')
+        if answer:
+            marking_criteria = f"Answer: {answer}\n\nMarking: Award {method_marks} method mark(s) for correct working shown. Award {accuracy_marks} accuracy mark(s) for correct final answer."
+        else:
+            marking_criteria = f"Award {method_marks} method mark(s) for correct working shown. Award {accuracy_marks} accuracy mark(s) for correct final answer. Accept equivalent methods."
+        
         mark_scheme = {
             'question_id': question.get('id'),
-            'marking_criteria': f"Award {method_marks} method mark(s) for correct working shown. Award {accuracy_marks} accuracy mark(s) for correct final answer. Accept equivalent methods.",
+            'marking_criteria': marking_criteria,
             'method_marks': method_marks,
-            'accuracy_marks': accuracy_marks
+            'accuracy_marks': accuracy_marks,
+            'answer': answer
         }
         mark_schemes.append(mark_scheme)
     
