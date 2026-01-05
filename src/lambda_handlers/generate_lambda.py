@@ -5,6 +5,7 @@ GenerateLambda handler for GCSE question generation.
 import json
 import logging
 import os
+import time
 from src.utils.security import get_cors_response_headers
 from src.services.bedrock_service import BedrockService
 
@@ -26,6 +27,7 @@ def lambda_handler(event, context):
     from datetime import datetime
     
     request_id = str(uuid.uuid4())
+    start_time = time.time()
     
     logger.info(f"GenerateLambda invocation started - Request ID: {request_id}")
     
@@ -77,10 +79,36 @@ def lambda_handler(event, context):
         # Create response with mark schemes
         mark_schemes = generate_mark_schemes(questions)
         
+        # Save session to DynamoDB for history tracking
+        session_id = None
+        try:
+            from src.services.session_service import SessionService
+            session_service = SessionService(region=AWS_REGION)
+            
+            session_metadata = {
+                'topic': topic,
+                'tier': tier,
+                'question_count': len(questions),
+                'total_marks': sum(q.get('marks', 0) for q in questions),
+                'generation_time': time.time() - start_time if 'start_time' in dir() else 0
+            }
+            
+            session_id = session_service.create_session(
+                user_id=user_id,
+                query=enriched_prompt[:200] if enriched_prompt else f"Generate {count} {tier} {topic} questions",
+                generated_questions=questions,
+                metadata=session_metadata,
+                request_id=request_id
+            )
+            logger.info(f"Session saved: {session_id}")
+        except Exception as e:
+            logger.warning(f"Failed to save session (non-critical): {str(e)}")
+        
         response_body = {
             'success': True,
             'questions': questions,
             'mark_scheme': mark_schemes,
+            'session_id': session_id,
             'request_id': request_id,
             'generated_at': datetime.utcnow().isoformat(),
             'metadata': {
