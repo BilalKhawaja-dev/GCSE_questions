@@ -112,7 +112,7 @@ class TestContentRetrievalProperties:
         # Arrange
         service = ContentRetrievalService("test-specs", "test-examples", "eu-west-2")
         
-        with patch.object(service, '_get_s3_object', return_value=spec_content):
+        with patch.object(service, '_get_s3_object_with_fallback', return_value=spec_content):
             # Act
             result = service.get_specification_content(
                 topic=topic_request["topic"],
@@ -151,7 +151,7 @@ class TestContentRetrievalProperties:
         # Arrange
         service = ContentRetrievalService("test-specs", "test-examples", "eu-west-2")
         
-        with patch.object(service, '_get_s3_object', return_value=examples_content):
+        with patch.object(service, '_get_s3_object_with_fallback', return_value=examples_content):
             # Act
             result = service.get_examples_content(
                 topic=topic_request["topic"],
@@ -189,7 +189,7 @@ class TestContentRetrievalProperties:
             operation_name='GetObject'
         )
         
-        with patch.object(service, '_get_s3_object', side_effect=s3_error):
+        with patch.object(service, '_get_s3_object_with_fallback', side_effect=s3_error):
             # Act & Assert - Should handle failures gracefully
             if failure_count >= service.circuit_breaker.failure_threshold:
                 # Circuit breaker should open after threshold failures
@@ -227,7 +227,7 @@ class TestContentRetrievalProperties:
             operation_name='GetObject'
         )
         
-        with patch.object(service, '_get_s3_object', side_effect=s3_error):
+        with patch.object(service, '_get_s3_object_with_fallback', side_effect=s3_error):
             # Act
             result = service.get_examples_content(
                 topic=topic_request["topic"],
@@ -258,7 +258,7 @@ class TestContentRetrievalProperties:
         # Arrange
         service = ContentRetrievalService("test-specs", "test-examples", "eu-west-2")
         
-        with patch.object(service, '_get_s3_object') as mock_s3:
+        with patch.object(service, '_get_s3_object_with_fallback') as mock_s3:
             # Alternate between spec and examples content
             mock_s3.side_effect = lambda bucket, key: (
                 spec_content if "specifications" in key else examples_content

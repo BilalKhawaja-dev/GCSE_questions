@@ -1,9 +1,68 @@
-# GCSE Question Generator v1.0
+# GCSE Question Generator v2.0
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-orange.svg)](https://aws.amazon.com/)
 [![Terraform](https://img.shields.io/badge/Infrastructure-Terraform-purple.svg)](https://www.terraform.io/)
+
+## 🚨 ROLLBACK INSTRUCTIONS
+
+**This tag (`v2.0-complete`) represents a stable, working state of the system. Use this as your rollback point if things break.**
+
+### Quick Rollback Steps
+
+```bash
+# 1. Checkout this stable version
+git checkout v2.0-complete
+
+# 2. Redeploy Lambda functions
+python scripts/package_lambda.py
+python scripts/upload_lambda_package.py
+
+# 3. Rebuild and deploy frontend
+cd frontend
+npm install
+npm run build
+aws s3 sync build/ s3://gcse-frontend-assets-prod-a20289f9 --delete
+aws cloudfront create-invalidation --distribution-id E3HFZ1O3GQ3DPH --paths "/*"
+```
+
+### AWS Resources (Production)
+| Resource | Value |
+|----------|-------|
+| API Gateway | `https://3b41y4ox0l.execute-api.eu-west-2.amazonaws.com/prod` |
+| Frontend S3 Bucket | `gcse-frontend-assets-prod-a20289f9` |
+| CloudFront Distribution | `E3HFZ1O3GQ3DPH` |
+| CloudFront URL | `https://d2ckebo851nz2l.cloudfront.net` |
+| Lambda Package Bucket | `gcse-lambda-packages-prod-1a64dc99` |
+| Specifications Bucket | `gcse-specifications-prod-1a64dc99` |
+| Examples Bucket | `gcse-examples-prod-1a64dc99` |
+| Region | `eu-west-2` |
+
+### IAM Policies Applied (for reference if permissions break)
+```bash
+# Auth Lambda KMS permissions
+aws iam put-role-policy --role-name gcse-auth-lambda-role-prod \
+  --policy-name auth-kms-policy \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["kms:Decrypt","kms:Encrypt","kms:GenerateDataKey"],"Resource":"arn:aws:kms:eu-west-2:981686514879:key/12a1bf96-9a19-452f-b681-a428b0511092"}]}'
+
+# Topic Coverage Lambda KMS permissions  
+aws iam put-role-policy --role-name gcse-topic-coverage-lambda-role-prod \
+  --policy-name topic-coverage-kms-policy \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["kms:Decrypt","kms:Encrypt","kms:GenerateDataKey"],"Resource":"arn:aws:kms:eu-west-2:981686514879:key/12a1bf96-9a19-452f-b681-a428b0511092"}]}'
+
+# Session Lambda KMS permissions
+aws iam put-role-policy --role-name gcse-session-lambda-role-prod \
+  --policy-name session-kms-policy \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["kms:Decrypt","kms:Encrypt","kms:GenerateDataKey"],"Resource":"arn:aws:kms:eu-west-2:981686514879:key/12a1bf96-9a19-452f-b681-a428b0511092"}]}'
+
+# API Gateway Authorizer policy (points to correct Lambda)
+aws iam put-role-policy --role-name api-gateway-authorizer-role-prod \
+  --policy-name api-gateway-authorizer-policy-prod \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":"arn:aws:lambda:eu-west-2:981686514879:function:gcse-auth-lambda-prod"}]}'
+```
+
+---
 
 > **An AI-powered, serverless system for generating high-quality GCSE Mathematics questions with comprehensive mark schemes, built on AWS with cost optimization and production-ready monitoring.**
 
@@ -517,4 +576,13 @@ For support, questions, or contributions:
 
 **Built with ❤️ for GCSE Mathematics education**
 
-*Version 1.0 - Production Ready*
+*Version 2.0 - Complete & Stable (January 2026)*
+
+## Version History
+- **v2.0-complete** (2026-01-06): Stable release with all features working
+  - Authentication & authorization fully functional
+  - Topic coverage tracking working
+  - Session history working  
+  - LaTeX math rendering converted to human-readable Unicode
+  - All IAM permissions configured correctly
+- **v1.0**: Initial release

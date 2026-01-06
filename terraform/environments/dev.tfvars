@@ -4,8 +4,8 @@ environment = "dev"
 aws_region  = "eu-west-2"
 
 # Bedrock model configurations
-bedrock_model_haiku  = "anthropic.claude-3-haiku-20240307"
-bedrock_model_sonnet = "anthropic.claude-3-sonnet-20240229"
+bedrock_model_haiku  = "anthropic.claude-3-haiku-20240307-v1:0"
+bedrock_model_sonnet = "anthropic.claude-3-sonnet-20240229-v1:0"
 
 # API configuration
 api_rate_limit = 50

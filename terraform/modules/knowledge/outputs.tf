@@ -29,3 +29,13 @@ output "lambda_packages_bucket_arn" {
   description = "ARN of the S3 bucket for Lambda deployment packages"
   value       = aws_s3_bucket.lambda_packages.arn
 }
+
+output "question_bank_bucket_name" {
+  description = "Name of the S3 bucket for question bank"
+  value       = aws_s3_bucket.question_bank.bucket
+}
+
+output "question_bank_bucket_arn" {
+  description = "ARN of the S3 bucket for question bank"
+  value       = aws_s3_bucket.question_bank.arn
+}

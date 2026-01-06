@@ -19,9 +19,9 @@ import pdfplumber
 import boto3
 from botocore.exceptions import ClientError
 
-from models.specification_content import SpecificationContent
-from models.question import Question
-from models.mark_scheme import MarkScheme
+from src.models.specification_content import SpecificationContent
+from src.models.question import Question
+from src.models.mark_scheme import MarkScheme
 
 logger = logging.getLogger(__name__)
 

@@ -44,6 +44,7 @@ class CodePipelineDeployer:
             'terraform/**/*',
             'tests/**/*',
             'scripts/**/*',
+            'cicd/**/*',
             '.kiro/**/*',
             '*.py',
             '*.md',

@@ -21,7 +21,7 @@ def valid_natural_language_query_strategy(draw):
     """Generate valid natural language queries containing topic, tier, and count information."""
     topic = draw(st.sampled_from(VALID_TOPICS))
     tier = draw(st.sampled_from(VALID_TIERS))
-    count = draw(st.integers(min_value=1, max_value=50))
+    count = draw(st.integers(min_value=1, max_value=100))
     
     # Create query templates that contain the required information
     templates = [
@@ -153,7 +153,7 @@ class TestPropertyQueryInterpretation:
             # Verify components have valid values
             assert response_body["topic"] in VALID_TOPICS
             assert response_body["tier"] in VALID_TIERS
-            assert 1 <= response_body["count"] <= 50
+            assert 1 <= response_body["count"] <= 100
             assert 0.0 <= response_body["confidence"] <= 1.0
             
             # Verify response includes metadata
@@ -238,7 +238,7 @@ class TestPropertyQueryInterpretation:
     @given(
         topic=st.sampled_from(VALID_TOPICS),
         tier=st.sampled_from(VALID_TIERS),
-        count=st.integers(min_value=1, max_value=50),
+        count=st.integers(min_value=1, max_value=100),
         confidence=st.floats(min_value=0.0, max_value=1.0)
     )
     def test_bedrock_service_parsing_consistency(self, topic, tier, count, confidence):
@@ -359,7 +359,7 @@ class TestPropertyQueryInterpretation:
         import re
         count_match = re.search(r'\d+', query)
         count = int(count_match.group()) if count_match else 5
-        count = max(1, min(50, count))  # Clamp to valid range
+        count = max(1, min(100, count))  # Clamp to valid range
         
         return QueryIntent(
             topic=topic,

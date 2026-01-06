@@ -24,3 +24,21 @@ output "generate_lambda_log_group" {
   description = "GenerateLambda CloudWatch log group name"
   value       = aws_cloudwatch_log_group.generate_lambda_logs.name
 }
+# Auto-scaling outputs
+output "autoscaling_enabled" {
+  description = "Whether DynamoDB auto-scaling is enabled"
+  value       = var.enable_dynamodb_autoscaling
+}
+
+output "autoscaling_targets" {
+  description = "Auto-scaling target configurations"
+  value = var.enable_dynamodb_autoscaling ? {
+    users_read_capacity    = "${var.dynamodb_min_read_capacity}-${var.dynamodb_max_read_capacity}"
+    users_write_capacity   = "${var.dynamodb_min_write_capacity}-${var.dynamodb_max_write_capacity}"
+    sessions_read_capacity = "${var.dynamodb_min_read_capacity}-${var.dynamodb_max_read_capacity * 2}"
+    sessions_write_capacity = "${var.dynamodb_min_write_capacity}-${var.dynamodb_max_write_capacity * 2}"
+    feedback_read_capacity = "${var.dynamodb_min_read_capacity}-${var.dynamodb_max_read_capacity}"
+    feedback_write_capacity = "${var.dynamodb_min_write_capacity}-${var.dynamodb_max_write_capacity}"
+    target_utilization = "${var.dynamodb_target_utilization}%"
+  } : {}
+}

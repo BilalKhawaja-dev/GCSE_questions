@@ -3,7 +3,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.9
+      python: 3.11
     commands:
       - echo "Installing dependencies..."
       - pip install --upgrade pip
@@ -12,33 +12,82 @@ phases:
   
   pre_build:
     commands:
-      - echo "Pre-build phase started"
+      - echo "Pre-build phase started on `date`"
       - pwd
       - ls -la src/
-      - echo "Skipping import tests for now"
-      - echo "Running basic syntax checks"
+      - echo "Running code quality checks..."
       - python -m py_compile src/models/query_intent.py
       - python -m py_compile src/models/question.py
       - python -m py_compile src/models/mark_scheme.py
+      - python -m py_compile src/models/user.py
+      - python -m py_compile src/models/specification_content.py
+      - echo "Validating all Lambda handlers..."
+      - python -m py_compile src/lambda_handlers/interpret_lambda.py
+      - python -m py_compile src/lambda_handlers/generate_lambda.py
+      - python -m py_compile src/lambda_handlers/auth_lambda.py
+      - python -m py_compile src/lambda_handlers/session_lambda.py
+      - python -m py_compile src/lambda_handlers/feedback_lambda.py
+      - python -m py_compile src/lambda_handlers/refinement_lambda.py
+      - python -m py_compile src/lambda_handlers/export_lambda.py
+      - python -m py_compile src/lambda_handlers/topic_coverage_lambda.py
       - echo "Code quality checks passed"
   
   build:
     commands:
-      - echo "Build phase started"
-      - echo "Skipping tests for now to focus on deployment"
-      - echo "Tests would run here in a working environment"
-      - echo "Build completed successfully"
+      - echo "Build phase started on `date`"
+      - echo "Running unit tests..."
+      - python -m pytest tests/test_models.py -v
+      - python -m pytest tests/test_utils.py -v
+      - python -m pytest tests/test_interpret_lambda.py -v
+      - python -m pytest tests/test_generate_lambda.py -v
+      - echo "Running property-based tests..."
+      - python -m pytest tests/test_property_question_variation.py -v --tb=short
+      - python -m pytest tests/test_property_difficulty_scoring.py -v --tb=short
+      - python -m pytest tests/test_property_topic_mapping.py -v --tb=short
+      - python -m pytest tests/test_property_query_parsing.py -v --tb=short
+      - python -m pytest tests/test_property_prompt_enrichment.py -v --tb=short
+      - python -m pytest tests/test_property_difficulty_calibration.py -v --tb=short
+      - python -m pytest tests/test_property_teacher_features.py -v --tb=short
+      - python -m pytest tests/test_property_mathematical_rendering.py -v --tb=short
+      - python -m pytest tests/test_property_user_registration.py -v --tb=short
+      - python -m pytest tests/test_property_authentication.py -v --tb=short
+      - python -m pytest tests/test_property_session_storage.py -v --tb=short
+      - python -m pytest tests/test_property_feedback_storage.py -v --tb=short
+      - python -m pytest tests/test_property_question_banking.py -v --tb=short
+      - python -m pytest tests/test_property_quality_score_updates.py -v --tb=short
+      - python -m pytest tests/test_property_topic_coverage_tracking.py -v --tb=short
+      - python -m pytest tests/test_property_pdf_export.py -v --tb=short
+      - python -m pytest tests/test_property_question_validation.py -v --tb=short
+      - echo "Running integration tests..."
+      - python -m pytest tests/test_infrastructure_integration.py -v
+      - python -m pytest tests/test_security_validation.py -v
+      - python -m pytest tests/test_monitoring_validation.py -v
+      - echo "All tests completed successfully"
   
   post_build:
     commands:
-      - echo "Post-build phase started"
-      - echo "Skipping coverage for now"
-      - echo "Build completed successfully"
+      - echo "Post-build phase started on `date`"
+      - echo "Generating test coverage report..."
+      - python -m pytest --cov=src --cov-report=html --cov-report=xml
+      - echo "Test coverage report generated"
+      - echo "Build completed successfully on `date`"
 
 artifacts:
   files:
-    - '**/*'
-  name: gcse-question-generator-$(date +%Y-%m-%d)
+    - 'htmlcov/**/*'
+    - 'coverage.xml'
+    - 'pytest-report.xml'
+  name: gcse-test-results-$(date +%Y-%m-%d)
+
+reports:
+  pytest_reports:
+    files:
+      - 'pytest-report.xml'
+    file-format: 'JUNITXML'
+  coverage_reports:
+    files:
+      - 'coverage.xml'
+    file-format: 'COBERTURAXML'
 
 cache:
   paths:

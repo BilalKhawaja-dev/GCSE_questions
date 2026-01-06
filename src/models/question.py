@@ -15,6 +15,7 @@ class Question:
         tier: Difficulty tier ("Foundation" or "Higher")
         topic: Main subject area
         subtopic: Specific subtopic (optional)
+        difficulty_score: Numeric difficulty rating (1-10 scale)
         mathematical_elements: List of mathematical concepts present
         difficulty_indicators: List of difficulty indicators
     """
@@ -23,6 +24,7 @@ class Question:
     marks: int
     tier: str
     topic: str
+    difficulty_score: int
     subtopic: Optional[str] = None
     mathematical_elements: Optional[List[str]] = None
     difficulty_indicators: Optional[List[str]] = None
@@ -43,6 +45,16 @@ class Question:
         
         if not self.topic:
             raise ValueError("Topic cannot be empty")
+        
+        # Validate difficulty score
+        if not isinstance(self.difficulty_score, int) or not (1 <= self.difficulty_score <= 10):
+            raise ValueError(f"Invalid difficulty_score: {self.difficulty_score}. Must be integer between 1-10")
+        
+        # Validate difficulty score matches tier expectations
+        if self.tier == "Foundation" and self.difficulty_score > 5:
+            raise ValueError(f"Foundation tier difficulty_score {self.difficulty_score} should be 1-5")
+        elif self.tier == "Higher" and self.difficulty_score < 6:
+            raise ValueError(f"Higher tier difficulty_score {self.difficulty_score} should be 6-10")
         
         # Initialize empty lists if None
         if self.mathematical_elements is None:

@@ -46,6 +46,7 @@ module "api" {
   specifications_bucket_name    = module.knowledge.specifications_bucket_name
   examples_bucket_name          = module.knowledge.examples_bucket_name
   lambda_packages_bucket_name   = module.knowledge.lambda_packages_bucket_name
+  question_bank_bucket_name     = module.knowledge.question_bank_bucket_name
   bedrock_model_haiku           = var.bedrock_model_haiku
   bedrock_model_sonnet          = var.bedrock_model_sonnet
 }
@@ -75,11 +76,19 @@ module "monitoring" {
   api_gateway_name            = module.api.api_gateway_name
   interpret_lambda_name       = module.api.interpret_lambda_name
   generate_lambda_name        = module.api.generate_lambda_name
+  auth_lambda_name            = module.api.auth_lambda_name
+  session_lambda_name         = module.api.session_lambda_name
+  feedback_lambda_name        = module.api.feedback_lambda_name
+  refinement_lambda_name      = module.api.refinement_lambda_name
+  export_lambda_name          = module.api.export_lambda_name
+  topic_coverage_lambda_name  = module.api.topic_coverage_lambda_name
   specifications_bucket_name  = module.knowledge.specifications_bucket_name
   examples_bucket_name        = module.knowledge.examples_bucket_name
+  question_bank_bucket_name   = module.knowledge.question_bank_bucket_name
   frontend_bucket_name        = module.frontend.frontend_bucket_name
   cloudfront_distribution_id  = module.frontend.cloudfront_distribution_id
   alert_email                 = var.alert_email
   cost_threshold_daily        = var.cost_threshold_daily
   cost_threshold_monthly      = var.cost_threshold_monthly
+  enable_dynamodb_autoscaling = var.enable_dynamodb_autoscaling
 }

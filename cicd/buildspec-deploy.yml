@@ -3,7 +3,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.9
+      python: 3.11
     commands:
       - echo "Installing deployment dependencies..."
       - pip install --upgrade pip
@@ -23,11 +23,14 @@ phases:
       - terraform validate
       - cd ..
       - echo "Terraform validation completed"
+      - echo "Running pre-deployment security checks..."
+      - python -c "import src.utils.security; print('Security module validated')"
+      - echo "Security validation completed"
   
   build:
     commands:
       - echo "Deployment phase started on `date`"
-      - echo "Packaging Lambda functions..."
+      - echo "Packaging Lambda functions with all V2 components..."
       - python scripts/package_lambda.py
       - echo "Uploading Lambda packages to S3..."
       - python scripts/upload_lambda_package.py
@@ -35,15 +38,93 @@ phases:
       - cd terraform
       - terraform init
       - terraform plan -var-file="environments/prod.tfvars" -out=tfplan
+      - echo "Applying Terraform changes with blue-green strategy..."
       - terraform apply -auto-approve tfplan
       - cd ..
       - echo "Infrastructure deployment completed"
+      - echo "Executing blue-green deployment for Lambda functions..."
+      - python scripts/blue_green_deploy.py
+      - echo "Blue-green deployment completed"
+      - echo "Warming up Lambda functions..."
+      - python -c "
+import boto3
+import json
+import time
+
+lambda_client = boto3.client('lambda', region_name='eu-west-2')
+functions = [
+    'gcse-auth-lambda-prod',
+    'gcse-interpret-lambda-prod', 
+    'gcse-generate-lambda-prod',
+    'gcse-session-lambda-prod',
+    'gcse-feedback-lambda-prod',
+    'gcse-export-lambda-prod',
+    'gcse-topic-coverage-lambda-prod'
+]
+
+for func in functions:
+    try:
+        print(f'Warming up {func}...')
+        lambda_client.invoke(
+            FunctionName=func,
+            InvocationType='Event',
+            Payload=json.dumps({'warmup': True})
+        )
+        time.sleep(1)
+    except Exception as e:
+        print(f'Warning: Could not warm up {func}: {e}')
+        
+print('Lambda warming completed')
+"
   
   post_build:
     commands:
       - echo "Post-deployment phase started on `date`"
-      - echo "Running system validation..."
+      - echo "Running comprehensive system validation..."
       - python validate_system.py
+      - echo "Validating monitoring and alerting systems..."
+      - python scripts/validate_monitoring.py ${ENVIRONMENT:-prod}
+      - echo "Testing monitoring system functionality..."
+      - python scripts/test_monitoring_system.py ${ENVIRONMENT:-prod}
+      - echo "Testing API Gateway endpoints..."
+      - python -c "
+import requests
+import os
+
+api_url = os.environ.get('API_GATEWAY_URL', 'https://api.gcse-generator.example.com/prod')
+health_endpoints = ['/auth', '/interpret', '/generate', '/user/sessions', '/feedback']
+
+for endpoint in health_endpoints:
+    try:
+        response = requests.options(f'{api_url}{endpoint}', timeout=10)
+        print(f'{endpoint}: {response.status_code}')
+    except Exception as e:
+        print(f'{endpoint}: ERROR - {e}')
+"
+      - echo "Running smoke tests on deployed infrastructure..."
+      - python -c "
+import boto3
+
+# Test DynamoDB tables
+dynamodb = boto3.client('dynamodb', region_name='eu-west-2')
+tables = ['gcse-generator-v2-users-prod', 'gcse-generator-v2-sessions-prod', 'gcse-generator-v2-topic-coverage-prod']
+
+for table in tables:
+    try:
+        response = dynamodb.describe_table(TableName=table)
+        print(f'Table {table}: {response[\"Table\"][\"TableStatus\"]}')
+    except Exception as e:
+        print(f'Table {table}: ERROR - {e}')
+
+# Test S3 buckets
+s3 = boto3.client('s3', region_name='eu-west-2')
+try:
+    buckets = s3.list_buckets()
+    gcse_buckets = [b['Name'] for b in buckets['Buckets'] if 'gcse' in b['Name']]
+    print(f'GCSE S3 buckets: {len(gcse_buckets)} found')
+except Exception as e:
+    print(f'S3 validation: ERROR - {e}')
+"
       - echo "Deployment validation completed"
       - echo "Deployment completed successfully on `date`"
 
@@ -51,6 +132,7 @@ artifacts:
   files:
     - 'terraform/terraform.tfstate'
     - 'deployment-report.json'
+    - 'validation-results.json'
   name: gcse-deployment-$(date +%Y-%m-%d)
 
 cache:

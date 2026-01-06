@@ -52,3 +52,9 @@ variable "cost_threshold_monthly" {
   type        = number
   default     = 500
 }
+
+variable "enable_dynamodb_autoscaling" {
+  description = "Enable DynamoDB auto-scaling (requires provisioned billing mode)"
+  type        = bool
+  default     = false
+}

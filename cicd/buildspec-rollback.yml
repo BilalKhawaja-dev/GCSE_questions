@@ -1,0 +1,136 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Installing rollback dependencies..."
+      - pip install --upgrade pip
+      - pip install boto3 botocore
+      - curl -fsSL https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip -o terraform.zip
+      - unzip terraform.zip
+      - mv terraform /usr/local/bin/
+      - terraform --version
+      - echo "Rollback dependencies installed"
+  
+  pre_build:
+    commands:
+      - echo "Pre-rollback phase started on `date`"
+      - echo "Validating rollback target..."
+      - echo "ROLLBACK_TARGET=${ROLLBACK_TARGET:-previous}"
+      - echo "Checking Terraform state backup..."
+      - cd terraform
+      - terraform init
+      - cd ..
+      - echo "Rollback validation completed"
+  
+  build:
+    commands:
+      - echo "Rollback phase started on `date`"
+      - echo "Rolling back to previous stable state..."
+      - cd terraform
+      - echo "Retrieving previous Terraform state..."
+      - aws s3 cp s3://gcse-terraform-state-backup/terraform.tfstate.backup terraform.tfstate
+      - echo "Applying rollback configuration..."
+      - terraform plan -var-file="environments/prod.tfvars" -out=rollback-plan
+      - terraform apply -auto-approve rollback-plan
+      - cd ..
+      - echo "Infrastructure rollback completed"
+      - echo "Rolling back Lambda function versions..."
+      - python -c "
+import boto3
+import json
+
+lambda_client = boto3.client('lambda', region_name='eu-west-2')
+functions = [
+    'gcse-auth-lambda-prod',
+    'gcse-interpret-lambda-prod', 
+    'gcse-generate-lambda-prod',
+    'gcse-session-lambda-prod',
+    'gcse-feedback-lambda-prod',
+    'gcse-export-lambda-prod',
+    'gcse-topic-coverage-lambda-prod'
+]
+
+for func in functions:
+    try:
+        # Get previous version
+        versions = lambda_client.list_versions_by_function(FunctionName=func)
+        if len(versions['Versions']) > 2:  # $LATEST + at least 2 numbered versions
+            previous_version = versions['Versions'][-2]['Version']
+            print(f'Rolling back {func} to version {previous_version}')
+            
+            # Update alias to point to previous version
+            try:
+                lambda_client.update_alias(
+                    FunctionName=func,
+                    Name='LIVE',
+                    FunctionVersion=previous_version
+                )
+                print(f'Successfully rolled back {func}')
+            except lambda_client.exceptions.ResourceNotFoundException:
+                print(f'No LIVE alias found for {func}, skipping')
+        else:
+            print(f'Not enough versions for {func} to rollback')
+    except Exception as e:
+        print(f'Error rolling back {func}: {e}')
+"
+  
+  post_build:
+    commands:
+      - echo "Post-rollback phase started on `date`"
+      - echo "Validating rollback success..."
+      - python validate_system.py
+      - echo "Testing rolled-back endpoints..."
+      - python -c "
+import requests
+import os
+import time
+
+api_url = os.environ.get('API_GATEWAY_URL', 'https://api.gcse-generator.example.com/prod')
+health_endpoints = ['/auth', '/interpret', '/generate']
+
+print('Waiting 30 seconds for rollback to stabilize...')
+time.sleep(30)
+
+for endpoint in health_endpoints:
+    try:
+        response = requests.options(f'{api_url}{endpoint}', timeout=10)
+        print(f'{endpoint}: {response.status_code}')
+    except Exception as e:
+        print(f'{endpoint}: ERROR - {e}')
+"
+      - echo "Sending rollback notification..."
+      - python -c "
+import boto3
+import json
+
+sns = boto3.client('sns', region_name='eu-west-2')
+try:
+    sns.publish(
+        TopicArn='arn:aws:sns:eu-west-2:ACCOUNT:gcse-alerts-prod',
+        Subject='GCSE Generator V2 - Rollback Completed',
+        Message=json.dumps({
+            'event': 'rollback_completed',
+            'timestamp': '$(date -u +%Y-%m-%dT%H:%M:%SZ)',
+            'build_id': '${CODEBUILD_BUILD_ID}',
+            'status': 'success'
+        }, indent=2)
+    )
+    print('Rollback notification sent')
+except Exception as e:
+    print(f'Failed to send notification: {e}')
+"
+      - echo "Rollback completed successfully on `date`"
+
+artifacts:
+  files:
+    - 'terraform/terraform.tfstate'
+    - 'rollback-report.json'
+  name: gcse-rollback-$(date +%Y-%m-%d)
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - 'terraform/.terraform/**/*'

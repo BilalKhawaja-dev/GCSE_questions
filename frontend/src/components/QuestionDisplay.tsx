@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QuestionResponse } from '../types/api';
 import FeedbackWidget from './FeedbackWidget';
+import { formatMathematicalText } from '../utils/mathFormatting';
 import './QuestionDisplay.css';
 
 interface QuestionDisplayProps {
@@ -129,15 +130,6 @@ interface QuestionItemProps {
 }
 
 const QuestionItem: React.FC<QuestionItemProps> = ({ question, markScheme, questionNumber, showAnswer }) => {
-  // Format mathematical text for display
-  const formatMathematicalText = (text: string): string => {
-    if (!text) return '';
-    // Handle line breaks and clean up whitespace
-    return text
-      .replace(/\n/g, '<br>')
-      .trim();
-  };
-
   // Handle both question_text and text field names
   const questionText = question.question_text || (question as any).text || 'Question text not available';
   
@@ -202,7 +194,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, markScheme, quest
                     <div 
                       dangerouslySetInnerHTML={{
                         __html: formatMathematicalText(
-                          markScheme.marking_criteria.replace(/^Answer:.*?\n\n/s, '')
+                          markScheme.marking_criteria.replace(/^Answer:[\s\S]*?\n\n/, '')
                         )
                       }}
                     />

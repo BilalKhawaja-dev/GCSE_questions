@@ -184,6 +184,108 @@ def sanitize_json_input(data: Dict[str, Any]) -> Dict[str, Any]:
     return sanitized
 
 
+def validate_email(email: str) -> bool:
+    """Validate email format.
+    
+    Args:
+        email: Email address to validate
+        
+    Returns:
+        True if valid email format, False otherwise
+    """
+    if not email:
+        return False
+    
+    # Basic email regex pattern
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(email_pattern, email) is not None
+
+
+def validate_username(username: str) -> tuple[bool, str]:
+    """Validate username format and requirements.
+    
+    Args:
+        username: Username to validate
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not username:
+        return False, "Username is required"
+    
+    if len(username) < 3:
+        return False, "Username must be at least 3 characters long"
+    
+    if len(username) > 50:
+        return False, "Username must be less than 50 characters long"
+    
+    # Check for valid characters (alphanumeric and underscore only)
+    if not re.match(r'^[a-zA-Z0-9_]+$', username):
+        return False, "Username can only contain letters, numbers, and underscores"
+    
+    return True, "Username is valid"
+
+
+def validate_password(password: str) -> tuple[bool, str]:
+    """Validate password strength.
+    
+    Args:
+        password: Password to validate
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not password:
+        return False, "Password is required"
+    
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if len(password) > 128:
+        return False, "Password must be less than 128 characters long"
+    
+    # Check for at least one uppercase letter
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    # Check for at least one lowercase letter
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    # Check for at least one digit
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one digit"
+    
+    # Check for at least one special character
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "Password must contain at least one special character"
+    
+    return True, "Password is valid"
+
+
+def validate_required_fields(data: Dict[str, Any], required_fields: List[str]) -> Dict[str, Any]:
+    """
+    Validate that all required fields are present in the data.
+    
+    Args:
+        data: Dictionary containing the data to validate
+        required_fields: List of required field names
+        
+    Returns:
+        Dictionary with validation result and missing fields
+    """
+    missing_fields = []
+    
+    for field in required_fields:
+        if field not in data or data[field] is None or (isinstance(data[field], str) and not data[field].strip()):
+            missing_fields.append(field)
+    
+    return {
+        'valid': len(missing_fields) == 0,
+        'missing_fields': missing_fields
+    }
+
+
 def validate_generation_request(topic: str = None, tier: str = None, count: int = None, 
                               specification_version: str = "latest", request_body: Dict[str, Any] = None) -> Dict[str, Any]:
     """Validate question generation request parameters.

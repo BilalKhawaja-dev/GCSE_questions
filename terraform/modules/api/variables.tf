@@ -29,3 +29,8 @@ variable "bedrock_model_sonnet" {
   description = "Bedrock model ID for Claude Sonnet"
   type        = string
 }
+
+variable "question_bank_bucket_name" {
+  description = "Name of the S3 bucket for question bank"
+  type        = string
+}

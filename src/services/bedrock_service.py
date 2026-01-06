@@ -3,6 +3,7 @@ Bedrock service for AI model interactions.
 
 This service handles communication with AWS Bedrock models including
 Claude Haiku for query interpretation and Claude Sonnet for question generation.
+Enhanced with comprehensive error handling, retry logic, and circuit breaker patterns.
 """
 
 import json
@@ -17,21 +18,55 @@ from src.models.query_intent import QueryIntent
 from src.models.question import Question
 from src.models.mark_scheme import MarkScheme
 from src.utils.constants import VALID_TOPICS, VALID_TIERS
+from src.utils.math_rendering import convert_latex_to_plain_text, validate_no_latex_syntax
+from src.utils.error_handling import (
+    ErrorHandler, ErrorContext, ErrorType, CircuitBreaker,
+    exponential_backoff_retry, with_error_handling, 
+    RetryableError, NonRetryableError, validate_question_quality,
+    create_timeout_handler
+)
+from src.services.question_validation_service import QuestionValidationService
 
 logger = logging.getLogger(__name__)
 
 
 class BedrockService:
-    """Service for interacting with AWS Bedrock models."""
+    """Service for interacting with AWS Bedrock models with enhanced error handling."""
     
     def __init__(self, region: str = 'eu-west-2'):
-        """Initialize Bedrock service with proper client configuration."""
+        """Initialize Bedrock service with proper client configuration and error handling."""
         self.region = region
         self.client = boto3.client('bedrock-runtime', region_name=region)
         
         # Get model ID from environment variable (different for each Lambda)
         import os
         self.model_id = os.environ.get('BEDROCK_MODEL_ID', 'anthropic.claude-3-haiku-20240307-v1:0')
+        
+        # Initialize error handling components
+        self.error_handler = ErrorHandler()
+        self.circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
+        self.validation_service = QuestionValidationService()
+    
+    def call_bedrock_with_retry(self, prompt: str, request_id: str, max_tokens: int = 4000, temperature: float = 0.1) -> str:
+        """
+        Public method to call Bedrock API with retry logic.
+        
+        Args:
+            prompt: Input prompt for the model
+            request_id: Request ID for logging
+            max_tokens: Maximum tokens to generate
+            temperature: Model temperature setting
+            
+        Returns:
+            Model response text
+        """
+        return self._call_bedrock_with_retry(
+            model_id=self.model_id,
+            prompt=prompt,
+            request_id=request_id,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
         
     def parse_query_with_haiku(self, query: str, request_id: str) -> QueryIntent:
         """
@@ -52,32 +87,45 @@ class BedrockService:
             extra={"request_id": request_id, "query_length": len(query)}
         )
         
-        prompt = self._construct_interpretation_prompt(query)
-        
-        # Call Bedrock with retry logic
-        response = self._call_bedrock_with_retry(
-            model_id=self.model_id,
-            prompt=prompt,
-            request_id=request_id,
-            max_tokens=1000,
-            temperature=0.1
-        )
-        
-        # Parse the response into QueryIntent
-        intent = self._parse_haiku_response(response, query, request_id)
-        
-        logger.info(
-            "Query parsing completed",
-            extra={
-                "request_id": request_id,
-                "topic": intent.topic,
-                "tier": intent.tier,
-                "count": intent.count,
-                "confidence": intent.confidence
-            }
-        )
-        
-        return intent
+        try:
+            prompt = self._construct_interpretation_prompt(query)
+            
+            # Call Bedrock with retry logic
+            response = self._call_bedrock_with_retry(
+                model_id=self.model_id,
+                prompt=prompt,
+                request_id=request_id,
+                max_tokens=1000,
+                temperature=0.1
+            )
+            
+            # Parse the response into QueryIntent
+            intent = self._parse_haiku_response(response, query, request_id)
+            
+            logger.info(
+                "Query parsing completed",
+                extra={
+                    "request_id": request_id,
+                    "topic": intent.topic,
+                    "tier": intent.tier,
+                    "count": intent.count,
+                    "confidence": intent.confidence
+                }
+            )
+            
+            return intent
+            
+        except Exception as e:
+            logger.error(
+                "Query parsing failed",
+                extra={
+                    "request_id": request_id,
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                },
+                exc_info=True
+            )
+            raise
     
     def _construct_interpretation_prompt(self, query: str) -> str:
         """Construct structured prompt for query interpretation."""
@@ -92,7 +140,7 @@ Extract the following information:
 1. topic: The main GCSE math topic (must be one of the valid topics above)
 2. subtopic: More specific subtopic if mentioned (e.g., "fractions", "linear equations")
 3. tier: Difficulty level (Foundation or Higher)
-4. count: Number of questions requested (1-50)
+4. count: Number of questions requested (1-100)
 5. marks: Total marks if specified (optional)
 
 User query: "{query}"
@@ -113,17 +161,17 @@ Return ONLY a JSON object with this exact structure:
     "confidence": number between 0.0 and 1.0
 }}"""
 
+    @exponential_backoff_retry(max_retries=3, base_delay=1.0, max_delay=8.0)
     def _call_bedrock_with_retry(
         self,
         model_id: str,
         prompt: str,
         request_id: str,
         max_tokens: int = 4000,
-        temperature: float = 0.1,
-        max_retries: int = 3
+        temperature: float = 0.1
     ) -> str:
         """
-        Call Bedrock API with exponential backoff retry logic.
+        Call Bedrock API with enhanced retry logic and circuit breaker protection.
         
         Args:
             model_id: Bedrock model identifier
@@ -131,39 +179,39 @@ Return ONLY a JSON object with this exact structure:
             request_id: Request ID for logging
             max_tokens: Maximum tokens to generate
             temperature: Model temperature setting
-            max_retries: Maximum number of retry attempts
             
         Returns:
             Model response text
             
         Raises:
-            Exception: If all retries fail
+            RetryableError: For errors that should be retried
+            NonRetryableError: For errors that should not be retried
         """
-        for attempt in range(max_retries + 1):
-            try:
-                logger.info(
-                    f"Calling Bedrock API (attempt {attempt + 1})",
-                    extra={
-                        "request_id": request_id,
-                        "model_id": model_id,
-                        "attempt": attempt + 1
-                    }
-                )
-                
-                # Prepare request body for InvokeModel API
-                request_body = {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                    "top_p": 0.9,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
+        def bedrock_call():
+            logger.info(
+                "Calling Bedrock API with circuit breaker protection",
+                extra={
+                    "request_id": request_id,
+                    "model_id": model_id,
+                    "circuit_breaker_state": self.circuit_breaker.state.state
                 }
-                
+            )
+            
+            # Prepare request body for InvokeModel API
+            request_body = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "top_p": 0.9,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            }
+            
+            try:
                 response = self.client.invoke_model(
                     modelId=model_id,
                     body=json.dumps(request_body),
@@ -179,8 +227,7 @@ Return ONLY a JSON object with this exact structure:
                     "Bedrock API call successful",
                     extra={
                         "request_id": request_id,
-                        "response_length": len(response_text),
-                        "attempt": attempt + 1
+                        "response_length": len(response_text)
                     }
                 )
                 
@@ -190,58 +237,75 @@ Return ONLY a JSON object with this exact structure:
                 error_code = e.response.get('Error', {}).get('Code', 'Unknown')
                 error_message = e.response.get('Error', {}).get('Message', str(e))
                 
-                logger.warning(
-                    f"Bedrock API error (attempt {attempt + 1})",
-                    extra={
-                        "request_id": request_id,
-                        "error_code": error_code,
-                        "error_message": error_message,
-                        "attempt": attempt + 1,
-                        "full_error": str(e)
-                    }
+                # Create error context for proper handling
+                context = ErrorContext(
+                    error_type=ErrorType.BEDROCK_API_ERROR,
+                    operation="bedrock_api_call",
+                    request_id=request_id,
+                    attempt=1,
+                    max_attempts=3,
+                    error_message=error_message,
+                    error_code=error_code
                 )
                 
-                if attempt == max_retries:
-                    raise Exception(f"Bedrock API failed after {max_retries + 1} attempts: {error_message}")
+                # Handle error through error handler
+                context = self.error_handler.handle_bedrock_error(e, context)
                 
-                # Exponential backoff with jitter
-                wait_time = (2 ** attempt) + (time.time() % 1)
-                time.sleep(wait_time)
+                # Determine if error is retryable
+                if error_code in ['ThrottlingException', 'TooManyRequestsException', 
+                                'ServiceUnavailableException', 'InternalServerException']:
+                    raise RetryableError(f"Retryable Bedrock error: {error_message}")
+                else:
+                    raise NonRetryableError(f"Non-retryable Bedrock error: {error_message}")
                 
             except BotoCoreError as e:
                 logger.warning(
-                    f"Boto3 error (attempt {attempt + 1})",
+                    "Boto3 error in Bedrock call",
                     extra={
                         "request_id": request_id,
                         "error": str(e),
-                        "attempt": attempt + 1,
                         "error_type": type(e).__name__
                     }
                 )
-                
-                if attempt == max_retries:
-                    raise Exception(f"Boto3 error after {max_retries + 1} attempts: {str(e)}")
-                
-                wait_time = (2 ** attempt) + (time.time() % 1)
-                time.sleep(wait_time)
+                raise RetryableError(f"Boto3 error: {str(e)}")
                 
             except Exception as e:
                 logger.error(
-                    f"Unexpected error calling Bedrock (attempt {attempt + 1})",
+                    "Unexpected error calling Bedrock",
                     extra={
                         "request_id": request_id,
                         "error": str(e),
                         "error_type": type(e).__name__,
-                        "attempt": attempt + 1,
                         "model_id": model_id
                     }
                 )
+                raise RetryableError(f"Unexpected error: {str(e)}")
+        
+        # Execute with circuit breaker protection
+        try:
+            return self.circuit_breaker.call(bedrock_call)
+        except Exception as e:
+            # Convert circuit breaker errors to appropriate types
+            if "Circuit breaker is OPEN" in str(e):
+                context = ErrorContext(
+                    error_type=ErrorType.CIRCUIT_BREAKER_OPEN,
+                    operation="bedrock_api_call",
+                    request_id=request_id,
+                    attempt=1,
+                    max_attempts=1,
+                    error_message=str(e)
+                )
+                context.additional_context['user_message'] = (
+                    "The AI service is temporarily unavailable due to recent errors. "
+                    "Please try again in a few minutes."
+                )
+                context.additional_context['retry_recommended'] = True
+                context.additional_context['retry_delay'] = 60
                 
-                if attempt == max_retries:
-                    raise Exception(f"Unexpected error after {max_retries + 1} attempts: {str(e)}")
-                
-                wait_time = (2 ** attempt) + (time.time() % 1)
-                time.sleep(wait_time)
+                self.error_handler._log_error(context)
+                raise NonRetryableError("Circuit breaker is open - service temporarily unavailable")
+            
+            raise e
     
     def _parse_haiku_response(self, response: str, original_query: str, request_id: str) -> QueryIntent:
         """
@@ -392,6 +456,8 @@ Return ONLY a JSON object with this exact structure:
         # Ensure confidence is within valid range
         return max(0.0, min(1.0, confidence))
     
+    @with_error_handling("question_generation")
+    @create_timeout_handler(timeout_seconds=50)
     def generate_questions_with_sonnet(self, generation_request: Dict[str, Any], 
                                      spec_content: Dict[str, Any], 
                                      examples_content: List[Dict[str, Any]], 
@@ -438,8 +504,10 @@ Return ONLY a JSON object with this exact structure:
         # Parse the response into structured question set
         question_set = self._parse_sonnet_response(response, generation_request, request_id)
         
-        # Validate question quality
-        validated_question_set = self._validate_question_quality(question_set, generation_request, request_id)
+        # Validate question quality using comprehensive validation service
+        validated_question_set = self.validation_service.validate_question_set(
+            question_set, generation_request
+        )
         
         logger.info(
             "Question generation completed",
@@ -490,23 +558,30 @@ Requirements:
 2. Each question must be appropriate for {generation_request.get('tier')} tier
 3. Questions must align with the specification content and learning objectives
 4. Include detailed mark schemes with method and accuracy marks
-5. Use clear mathematical notation: fractions as 3/4 or (3/4), powers as x² or x^2, square roots as √16 or sqrt(16)
-- For complex expressions, use LaTeX only when necessary: \\frac{3}{4}, x^2, \\sqrt{16}
-- Prioritize human readability over LaTeX formatting
+5. Use clear mathematical notation with LaTeX for complex expressions:
+   - Fractions: \\frac{{3}}{{4}} for complex fractions, or 3/4 for simple ones
+   - Powers: x^2 for simple powers, x^{{n+1}} for complex exponents
+   - Square roots: \\sqrt{{16}} or sqrt(16)
+   - Mathematical operators: \\times, \\div, \\pm, \\leq, \\geq
+   - Greek letters: \\pi, \\theta, \\alpha, etc.
 6. Ensure questions test the key concepts listed in the specification
 7. Vary question difficulty within the tier level
 8. Make questions realistic and practical where possible
+9. CRITICAL: Assign difficulty scores (1-10 scale):
+   - Foundation tier: Use scores 1-5 (1=very easy, 5=challenging foundation)
+   - Higher tier: Use scores 6-10 (6=easy higher, 10=very challenging)
 
 Return your response as a JSON object with this exact structure:
 {{
     "questions": [
         {{
             "id": "q1",
-            "question_text": "Question text with LaTeX notation",
+            "question_text": "Question text with LaTeX notation where appropriate",
             "marks": 3,
             "tier": "{generation_request.get('tier')}",
             "topic": "{generation_request.get('topic')}",
-            "subtopic": "{generation_request.get('subtopic', '')}"
+            "subtopic": "{generation_request.get('subtopic', '')}",
+            "difficulty_score": 4
         }}
     ],
     "mark_scheme": [
@@ -525,7 +600,7 @@ Return your response as a JSON object with this exact structure:
     }}
 }}
 
-Ensure the JSON is valid and complete. The total_marks in metadata should equal the sum of all question marks."""
+Ensure the JSON is valid and complete. The total_marks in metadata should equal the sum of all question marks. Each question MUST include a difficulty_score field."""
     
     def _parse_sonnet_response(self, response: str, generation_request: Dict[str, Any], request_id: str) -> Dict[str, Any]:
         """
@@ -575,9 +650,61 @@ Ensure the JSON is valid and complete. The total_marks in metadata should equal 
                     if field not in question:
                         raise ValueError(f"Question {i+1} missing required field: {field}")
                 
+                # Apply LaTeX to plain text conversion to question text
+                original_question_text = question['question_text']
+                question['question_text'] = convert_latex_to_plain_text(original_question_text)
+                
+                # Validate that LaTeX conversion was successful
+                if not validate_no_latex_syntax(question['question_text']):
+                    logger.warning(
+                        f"Question {i+1} still contains LaTeX syntax after conversion",
+                        extra={
+                            "request_id": request_id,
+                            "original_text": original_question_text[:100] + "..." if len(original_question_text) > 100 else original_question_text,
+                            "converted_text": question['question_text'][:100] + "..." if len(question['question_text']) > 100 else question['question_text']
+                        }
+                    )
+                    # Reject questions that still contain LaTeX syntax
+                    raise ValueError(f"Question {i+1} contains unconverted LaTeX syntax: {question['question_text']}")
+                
                 # Validate marks is positive integer
                 if not isinstance(question['marks'], int) or question['marks'] < 1:
                     raise ValueError(f"Question {i+1} has invalid marks: {question['marks']}")
+                
+                # Validate difficulty score
+                if 'difficulty_score' not in question:
+                    # Auto-assign difficulty score if missing
+                    tier = question.get('tier', generation_request.get('tier', 'Foundation'))
+                    question['difficulty_score'] = self._assign_difficulty_score(question, tier)
+                    logger.info(
+                        f"Auto-assigned difficulty_score {question['difficulty_score']} to question {i+1}",
+                        extra={"request_id": request_id}
+                    )
+                else:
+                    difficulty_score = question['difficulty_score']
+                    if not isinstance(difficulty_score, int) or not (1 <= difficulty_score <= 10):
+                        # Auto-assign if invalid
+                        tier = question.get('tier', generation_request.get('tier', 'Foundation'))
+                        question['difficulty_score'] = self._assign_difficulty_score(question, tier)
+                        logger.warning(
+                            f"Invalid difficulty_score {difficulty_score} for question {i+1}, auto-assigned {question['difficulty_score']}",
+                            extra={"request_id": request_id}
+                        )
+                    else:
+                        # Validate difficulty score matches tier
+                        tier = question.get('tier', generation_request.get('tier', ''))
+                        if tier == "Foundation" and difficulty_score > 5:
+                            logger.warning(
+                                f"Question {i+1} difficulty_score {difficulty_score} too high for Foundation tier, adjusting to 5",
+                                extra={"request_id": request_id}
+                            )
+                            question['difficulty_score'] = 5
+                        elif tier == "Higher" and difficulty_score < 6:
+                            logger.warning(
+                                f"Question {i+1} difficulty_score {difficulty_score} too low for Higher tier, adjusting to 6",
+                                extra={"request_id": request_id}
+                            )
+                            question['difficulty_score'] = 6
             
             # Validate mark schemes
             mark_schemes = parsed_data['mark_scheme']
@@ -593,6 +720,23 @@ Ensure the JSON is valid and complete. The total_marks in metadata should equal 
                 for field in required_ms_fields:
                     if field not in mark_scheme:
                         raise ValueError(f"Mark scheme {i+1} missing required field: {field}")
+                
+                # Apply LaTeX to plain text conversion to marking criteria
+                original_marking_criteria = mark_scheme['marking_criteria']
+                mark_scheme['marking_criteria'] = convert_latex_to_plain_text(original_marking_criteria)
+                
+                # Validate that LaTeX conversion was successful for mark scheme
+                if not validate_no_latex_syntax(mark_scheme['marking_criteria']):
+                    logger.warning(
+                        f"Mark scheme {i+1} still contains LaTeX syntax after conversion",
+                        extra={
+                            "request_id": request_id,
+                            "original_criteria": original_marking_criteria[:100] + "..." if len(original_marking_criteria) > 100 else original_marking_criteria,
+                            "converted_criteria": mark_scheme['marking_criteria'][:100] + "..." if len(mark_scheme['marking_criteria']) > 100 else mark_scheme['marking_criteria']
+                        }
+                    )
+                    # Reject mark schemes that still contain LaTeX syntax
+                    raise ValueError(f"Mark scheme {i+1} contains unconverted LaTeX syntax: {mark_scheme['marking_criteria']}")
                 
                 # Validate marks are non-negative integers
                 method_marks = mark_scheme['method_marks']
@@ -640,11 +784,11 @@ Ensure the JSON is valid and complete. The total_marks in metadata should equal 
             )
             raise Exception(f"Failed to parse model response: {str(e)}")
     
-    def _validate_question_quality(self, question_set: Dict[str, Any], 
-                                 generation_request: Dict[str, Any], 
-                                 request_id: str) -> Dict[str, Any]:
+    def _validate_question_quality_enhanced(self, question_set: Dict[str, Any], 
+                                           generation_request: Dict[str, Any], 
+                                           request_id: str) -> Dict[str, Any]:
         """
-        Validate generated question quality and alignment with requirements.
+        Enhanced question quality validation with comprehensive error handling.
         
         Args:
             question_set: Generated question set
@@ -653,31 +797,98 @@ Ensure the JSON is valid and complete. The total_marks in metadata should equal 
             
         Returns:
             Validated question set with quality metrics
+            
+        Raises:
+            NonRetryableError: If questions fail validation and cannot be fixed
         """
         logger.info(
-            "Validating question quality",
+            "Validating question quality with enhanced validation",
             extra={"request_id": request_id, "question_count": len(question_set['questions'])}
         )
         
         validation_results = []
+        valid_questions = []
+        valid_mark_schemes = []
         
-        for question in question_set['questions']:
-            result = self._validate_single_question(question, generation_request, request_id)
-            validation_results.append(result)
+        for i, question in enumerate(question_set['questions']):
+            try:
+                # Use the enhanced validation function
+                validation_result = validate_question_quality(question)
+                validation_results.append(validation_result)
+                
+                if validation_result['is_valid']:
+                    valid_questions.append(question)
+                    # Find corresponding mark scheme
+                    mark_scheme = next(
+                        (ms for ms in question_set['mark_scheme'] if ms['question_id'] == question['id']),
+                        None
+                    )
+                    if mark_scheme:
+                        valid_mark_schemes.append(mark_scheme)
+                else:
+                    logger.warning(
+                        f"Question {i+1} failed validation",
+                        extra={
+                            "request_id": request_id,
+                            "question_id": question.get('id', f'q{i+1}'),
+                            "errors": validation_result['errors'],
+                            "confidence": validation_result['confidence']
+                        }
+                    )
+                    
+            except NonRetryableError as e:
+                logger.error(
+                    f"Question {i+1} has critical validation errors",
+                    extra={
+                        "request_id": request_id,
+                        "question_id": question.get('id', f'q{i+1}'),
+                        "error": str(e)
+                    }
+                )
+                # Skip this question entirely
+                continue
         
-        # Add quality metrics to metadata
-        question_set['metadata']['quality_validation'] = {
-            'average_confidence': sum(r['confidence'] for r in validation_results) / len(validation_results),
-            'validation_errors': [r['errors'] for r in validation_results if r['errors']],
-            'all_questions_valid': all(r['is_valid'] for r in validation_results)
-        }
+        # Check if we have enough valid questions
+        requested_count = generation_request.get('count', 5)
+        valid_count = len(valid_questions)
+        
+        if valid_count == 0:
+            raise NonRetryableError("No valid questions generated - all questions failed quality validation")
+        
+        if valid_count < requested_count * 0.5:  # Less than 50% success rate
+            logger.warning(
+                f"Low question validation success rate: {valid_count}/{requested_count}",
+                extra={"request_id": request_id}
+            )
+        
+        # Update question set with only valid questions
+        question_set['questions'] = valid_questions
+        question_set['mark_scheme'] = valid_mark_schemes
+        
+        # Recalculate metadata
+        total_marks = sum(q['marks'] for q in valid_questions)
+        question_set['metadata']['total_marks'] = total_marks
+        question_set['metadata']['generated_count'] = valid_count
+        question_set['metadata']['requested_count'] = requested_count
+        
+        # Add enhanced quality metrics
+        if validation_results:
+            question_set['metadata']['quality_validation'] = {
+                'average_confidence': sum(r['confidence'] for r in validation_results) / len(validation_results),
+                'validation_errors': [r['errors'] for r in validation_results if r['errors']],
+                'all_questions_valid': all(r['is_valid'] for r in validation_results),
+                'success_rate': valid_count / len(validation_results),
+                'total_validated': len(validation_results)
+            }
         
         logger.info(
-            "Question quality validation completed",
+            "Enhanced question quality validation completed",
             extra={
                 "request_id": request_id,
-                "average_confidence": question_set['metadata']['quality_validation']['average_confidence'],
-                "all_valid": question_set['metadata']['quality_validation']['all_questions_valid']
+                "valid_questions": valid_count,
+                "requested_questions": requested_count,
+                "success_rate": valid_count / requested_count if requested_count > 0 else 0,
+                "average_confidence": question_set['metadata']['quality_validation'].get('average_confidence', 0)
             }
         )
         
@@ -720,12 +931,11 @@ Ensure the JSON is valid and complete. The total_marks in metadata should equal 
             errors.append("Question may be too easy for Higher tier")
             confidence -= 0.2
         
-        # Check for LaTeX mathematical notation
-        if not re.search(r'\\[a-zA-Z]+\{.*?\}|\\[a-zA-Z]+|\$.*?\$', question.get('question_text', '')):
-            # Only warn if the question likely contains mathematical content
-            if any(indicator in question_text for indicator in ['calculate', 'solve', 'find', 'work out']):
-                errors.append("Question may be missing LaTeX mathematical notation")
-                confidence -= 0.1
+        # Check that LaTeX has been properly converted to plain text
+        question_text_content = question.get('question_text', '')
+        if not validate_no_latex_syntax(question_text_content):
+            errors.append("Question contains unconverted LaTeX syntax")
+            confidence -= 0.5  # This is a critical error
         
         # Check question length (should be substantial but not too long)
         text_length = len(question.get('question_text', ''))
@@ -785,3 +995,57 @@ Ensure the JSON is valid and complete. The total_marks in metadata should equal 
         difficulty_score += min(0.2, latex_complexity * 0.05)
         
         return min(1.0, difficulty_score)
+    
+    def _assign_difficulty_score(self, question: Dict[str, Any], tier: str) -> int:
+        """
+        Assign difficulty score to a question based on content analysis.
+        
+        Args:
+            question: Question dictionary
+            tier: Tier level (Foundation or Higher)
+            
+        Returns:
+            Difficulty score (1-10)
+        """
+        question_text = question.get('question_text', '').lower()
+        marks = question.get('marks', 1)
+        
+        # Base score based on tier
+        if tier == "Foundation":
+            base_score = 3  # Middle of 1-5 range
+            min_score, max_score = 1, 5
+        else:
+            base_score = 8  # Middle of 6-10 range  
+            min_score, max_score = 6, 10
+        
+        difficulty_adjustments = 0
+        
+        # Adjust based on marks (more marks = higher difficulty)
+        if marks >= 6:
+            difficulty_adjustments += 2
+        elif marks >= 4:
+            difficulty_adjustments += 1
+        elif marks <= 1:
+            difficulty_adjustments -= 1
+        
+        # Adjust based on mathematical complexity
+        complex_operations = ['quadratic', 'simultaneous', 'trigonometry', 'logarithm', 'differentiate', 'integrate']
+        difficulty_adjustments += sum(0.5 for op in complex_operations if op in question_text)
+        
+        # Adjust based on multi-step indicators
+        step_indicators = ['then', 'next', 'finally', 'also', 'calculate', 'find', 'hence']
+        step_count = sum(1 for indicator in step_indicators if indicator in question_text)
+        if step_count >= 3:
+            difficulty_adjustments += 1
+        elif step_count >= 2:
+            difficulty_adjustments += 0.5
+        
+        # Adjust based on advanced vocabulary
+        advanced_terms = ['coefficient', 'gradient', 'intercept', 'discriminant', 'factorize', 'rationalize']
+        difficulty_adjustments += sum(0.3 for term in advanced_terms if term in question_text)
+        
+        # Calculate final score
+        final_score = base_score + int(difficulty_adjustments)
+        
+        # Ensure score is within valid range for tier
+        return max(min_score, min(max_score, final_score))

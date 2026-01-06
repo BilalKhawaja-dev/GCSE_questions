@@ -39,7 +39,7 @@ TOPIC_MAPPING = {
 # Query validation constants
 MAX_QUERY_LENGTH = 500
 MIN_QUESTION_COUNT = 1
-MAX_QUESTION_COUNT = 50
+MAX_QUESTION_COUNT = 100
 
 # SQL injection patterns to detect and block
 SQL_INJECTION_PATTERNS = [

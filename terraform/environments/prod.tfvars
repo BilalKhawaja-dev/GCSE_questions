@@ -17,5 +17,8 @@ cost_threshold_monthly = 50
 # Alert configuration
 alert_email = "bilalkwj@example.com"  # Update with actual email
 
+# Disable auto-scaling temporarily to fix deployment
+enable_dynamodb_autoscaling = false
+
 # Optional domain name for custom domain
 # domain_name = "gcse-questions.example.com"

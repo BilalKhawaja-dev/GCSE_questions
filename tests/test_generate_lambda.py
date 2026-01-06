@@ -19,6 +19,7 @@ def create_mock_context(function_name="GenerateLambda", remaining_time_ms=50000)
     context = Mock()
     context.function_name = function_name
     context.aws_request_id = "test-aws-request-id"
+    context.memory_limit_in_mb = 512  # Add memory limit for lambda optimizer
     context.get_remaining_time_in_millis.return_value = remaining_time_ms
     return context
 
@@ -36,11 +37,21 @@ class TestGenerateLambdaHandler:
                 "tier": "Foundation",
                 "count": 3,
                 "specification_version": "latest"
-            })
+            }),
+            "headers": {
+                "Authorization": "Bearer test-session-token"
+            },
+            "requestContext": {
+                "identity": {
+                    "sourceIp": "127.0.0.1"
+                },
+                "requestId": "test-request-id"
+            }
         }
         context = Mock()
         context.function_name = "GenerateLambda"
         context.aws_request_id = "test-aws-request-id"
+        context.memory_limit_in_mb = 512
         context.get_remaining_time_in_millis.return_value = 50000  # 50 seconds remaining
         
         expected_response = {
@@ -71,9 +82,14 @@ class TestGenerateLambdaHandler:
             }
         }
         
-        with patch('src.lambda_handlers.generate_lambda._generate_questions', return_value=expected_response):
+        with patch('src.lambda_handlers.generate_lambda._generate_questions', return_value=expected_response), \
+             patch('src.lambda_handlers.generate_lambda.authenticate_request', return_value=(True, {'user_id': 'test-user', 'session_token': 'test-token'}, None)):
             # Act
             result = lambda_handler(event, context)
+            
+            # Debug: Print the actual result if it fails
+            if result["statusCode"] != 200:
+                print(f"Actual result: {result}")
             
             # Assert
             assert result["statusCode"] == 200
@@ -91,6 +107,7 @@ class TestGenerateLambdaHandler:
         context = Mock()
         context.function_name = "GenerateLambda"
         context.aws_request_id = "test-aws-request-id"
+        context.memory_limit_in_mb = 512
         context.get_remaining_time_in_millis.return_value = 50000  # 50 seconds remaining
         
         # Act
@@ -108,6 +125,7 @@ class TestGenerateLambdaHandler:
         context = Mock()
         context.function_name = "GenerateLambda"
         context.aws_request_id = "test-aws-request-id"
+        context.memory_limit_in_mb = 512
         context.get_remaining_time_in_millis.return_value = 50000  # 50 seconds remaining
         
         # Act
@@ -126,21 +144,32 @@ class TestGenerateLambdaHandler:
                 "topic": "",  # Invalid empty topic
                 "tier": "Invalid",  # Invalid tier
                 "count": 0  # Invalid count
-            })
+            }),
+            "headers": {
+                "Authorization": "Bearer test-session-token"
+            },
+            "requestContext": {
+                "identity": {
+                    "sourceIp": "127.0.0.1"
+                },
+                "requestId": "test-request-id"
+            }
         }
         context = Mock()
         context.function_name = "GenerateLambda"
         context.aws_request_id = "test-aws-request-id"
+        context.memory_limit_in_mb = 512
         context.get_remaining_time_in_millis.return_value = 50000  # 50 seconds remaining
         
-        # Act
-        result = lambda_handler(event, context)
-        
-        # Assert
-        assert result["statusCode"] == 400
-        body = json.loads(result["body"])
-        assert body["error"]["type"] == "ValidationError"
-        assert "validation failed" in body["error"]["message"].lower()
+        with patch('src.lambda_handlers.generate_lambda.authenticate_request', return_value=(True, {'user_id': 'test-user', 'session_token': 'test-token'}, None)):
+            # Act
+            result = lambda_handler(event, context)
+            
+            # Assert
+            assert result["statusCode"] == 400
+            body = json.loads(result["body"])
+            assert body["error"]["type"] == "ValidationError"
+            assert "validation failed" in body["error"]["message"].lower()
     
     def test_lambda_handler_generation_failure(self):
         """Test handler when question generation fails."""
@@ -150,15 +179,26 @@ class TestGenerateLambdaHandler:
                 "topic": "Number",
                 "tier": "Foundation",
                 "count": 3
-            })
+            }),
+            "headers": {
+                "Authorization": "Bearer test-session-token"
+            },
+            "requestContext": {
+                "identity": {
+                    "sourceIp": "127.0.0.1"
+                },
+                "requestId": "test-request-id"
+            }
         }
         context = Mock()
         context.function_name = "GenerateLambda"
         context.aws_request_id = "test-aws-request-id"
+        context.memory_limit_in_mb = 512
         context.get_remaining_time_in_millis.return_value = 50000  # 50 seconds remaining
         
         with patch('src.lambda_handlers.generate_lambda._generate_questions', 
-                  side_effect=Exception("Generation failed")):
+                  side_effect=Exception("Generation failed")), \
+             patch('src.lambda_handlers.generate_lambda.authenticate_request', return_value=(True, {'user_id': 'test-user', 'session_token': 'test-token'}, None)):
             # Act
             result = lambda_handler(event, context)
             
@@ -176,15 +216,26 @@ class TestGenerateLambdaHandler:
                 "topic": "Number",
                 "tier": "Foundation", 
                 "count": 3
-            })
+            }),
+            "headers": {
+                "Authorization": "Bearer test-session-token"
+            },
+            "requestContext": {
+                "identity": {
+                    "sourceIp": "127.0.0.1"
+                },
+                "requestId": "test-request-id"
+            }
         }
         context = Mock()
         context.function_name = "GenerateLambda"
         context.aws_request_id = "test-aws-request-id"
+        context.memory_limit_in_mb = 512
         context.get_remaining_time_in_millis.return_value = 50000  # 50 seconds remaining
         
         with patch('src.lambda_handlers.generate_lambda.validate_generation_request',
-                  side_effect=RuntimeError("Unexpected error")):
+                  side_effect=RuntimeError("Unexpected error")), \
+             patch('src.lambda_handlers.generate_lambda.authenticate_request', return_value=(True, {'user_id': 'test-user', 'session_token': 'test-token'}, None)):
             # Act
             result = lambda_handler(event, context)
             
@@ -537,7 +588,7 @@ class TestQuestionQualityValidationEdgeCases:
         
         for test_case in test_cases:
             # Act
-            result = bedrock_service._validate_question_quality(
+            result = bedrock_service._validate_question_quality_enhanced(
                 test_case,
                 {"topic": "Number", "tier": "Foundation"},
                 "test-request"

@@ -15,7 +15,7 @@ from src.lambda_handlers.interpret_lambda import (
     lambda_handler, 
     _parse_request_body, 
     _create_error_response,
-    _process_query_with_bedrock
+    _process_query_with_enhanced_bedrock
 )
 from src.services.bedrock_service import BedrockService
 from src.models.query_intent import QueryIntent
