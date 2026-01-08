@@ -1,0 +1,330 @@
+.grade-filter-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-color);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.grade-filter-compact .filter-prompt {
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 2.5rem;
+}
+
+.grade-filter-compact .filter-pills {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.grade-filter-compact .filter-pill {
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border: 2px solid #e5e7eb;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+.grade-filter-compact .filter-pill:hover {
+  transform: translateY(-1px);
+}
+
+.grade-filter-compact .filter-pill.active {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: white;
+}
+
+/* Colored tier buttons */
+.grade-filter-compact .filter-pill.foundation-tier {
+  background: #10b981;
+  border-color: #059669;
+  color: white;
+}
+
+.grade-filter-compact .filter-pill.foundation-tier:hover {
+  background: #059669;
+  border-color: #047857;
+}
+
+.grade-filter-compact .filter-pill.foundation-tier.active {
+  background: #047857;
+  border-color: #065f46;
+}
+
+.grade-filter-compact .filter-pill.higher-tier {
+  background: #8b5cf6;
+  border-color: #7c3aed;
+  color: white;
+}
+
+.grade-filter-compact .filter-pill.higher-tier:hover {
+  background: #7c3aed;
+  border-color: #6d28d9;
+}
+
+.grade-filter-compact .filter-pill.higher-tier.active {
+  background: #6d28d9;
+  border-color: #5b21b6;
+}
+
+/* All Topics button - neutral with dark text */
+.grade-filter-compact .filter-pill:not(.foundation-tier):not(.higher-tier) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #1f2937;
+}
+
+.grade-filter-compact .filter-pill:not(.foundation-tier):not(.higher-tier):hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.grade-filter-compact .filter-pill:not(.foundation-tier):not(.higher-tier).active {
+  background: #4b5563;
+  border-color: #374151;
+  color: white;
+}
+
+/* Pink Floral Theme */
+.grade-filter-compact.pink-floral {
+  background: linear-gradient(135deg, #fff5f7 0%, #ffe4e9 100%);
+  border: 2px solid rgba(244, 114, 182, 0.3);
+  box-shadow: 0 4px 16px rgba(244, 114, 182, 0.15);
+  position: relative;
+  overflow: visible;
+  padding-left: 3rem;
+  padding-right: 3rem;
+}
+
+/* Rose decorations for grade filter - DISABLED FOR CLEANER UI */
+/*
+.grade-filter-compact.pink-floral::before {
+  content: '🌹';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  opacity: 0.4;
+  animation: floatRose 4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.3));
+}
+
+.grade-filter-compact.pink-floral::after {
+  content: '🌹';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  opacity: 0.4;
+  animation: floatRose 4s ease-in-out infinite 2s;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.3));
+}
+*/
+
+/* Removed decorative floral pattern for cleaner UI */
+/*
+.grade-filter-compact.pink-floral .filter-prompt::before {
+  content: '🌸';
+  margin-right: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.6;
+  animation: spin 15s linear infinite;
+}
+
+.grade-filter-compact.pink-floral .filter-prompt::after {
+  content: '🌸';
+  margin-left: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.6;
+  animation: spin 15s linear infinite reverse;
+}
+*/
+
+/* Enhanced filter pills with gradients */
+.grade-filter-compact.pink-floral .filter-pill {
+  box-shadow: 0 2px 8px rgba(244, 114, 182, 0.2);
+  border: 2px solid rgba(244, 114, 182, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Remove flower decorations from filter pills for cleaner UI */
+
+/* Shimmer effect on hover */
+.grade-filter-compact.pink-floral .filter-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  transition: left 0.5s ease;
+  z-index: 0;
+}
+
+.grade-filter-compact.pink-floral .filter-pill:hover::before {
+  left: 100%;
+}
+
+/* Ensure text is above shimmer */
+.grade-filter-compact.pink-floral .filter-pill {
+  position: relative;
+}
+
+.grade-filter-compact.pink-floral .filter-pill > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Enhanced hover effects */
+.grade-filter-compact.pink-floral .filter-pill:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 16px rgba(244, 114, 182, 0.3);
+}
+
+/* Active state with rose glow */
+.grade-filter-compact.pink-floral .filter-pill.active {
+  box-shadow: 
+    0 4px 16px rgba(244, 114, 182, 0.4),
+    0 0 20px rgba(236, 72, 153, 0.2);
+  animation: roseGlow 2s ease-in-out infinite;
+}
+
+@keyframes roseGlow {
+  0%, 100% { 
+    box-shadow: 
+      0 4px 16px rgba(244, 114, 182, 0.4),
+      0 0 20px rgba(236, 72, 153, 0.2);
+  }
+  50% { 
+    box-shadow: 
+      0 4px 16px rgba(244, 114, 182, 0.5),
+      0 0 30px rgba(236, 72, 153, 0.3);
+  }
+}
+
+/* Foundation tier with rose theme */
+.grade-filter-compact.pink-floral .filter-pill.foundation-tier {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: rgba(5, 150, 105, 0.5);
+}
+
+.grade-filter-compact.pink-floral .filter-pill.foundation-tier:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  border-color: rgba(4, 120, 87, 0.7);
+}
+
+/* Higher tier with rose theme */
+.grade-filter-compact.pink-floral .filter-pill.higher-tier {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+.grade-filter-compact.pink-floral .filter-pill.higher-tier:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  border-color: rgba(109, 40, 217, 0.7);
+}
+
+/* All topics with rose theme */
+.grade-filter-compact.pink-floral .filter-pill:not(.foundation-tier):not(.higher-tier) {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-color: rgba(209, 213, 219, 0.5);
+}
+
+.grade-filter-compact.pink-floral .filter-pill:not(.foundation-tier):not(.higher-tier):hover {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  border-color: rgba(156, 163, 175, 0.7);
+}
+
+/* Mobile Responsive - Touch-friendly sizes (minimum 44px × 44px) */
+@media (max-width: 768px) {
+  .grade-filter-compact {
+    flex-wrap: wrap;
+    padding: 0.85rem 1rem;
+  }
+  
+  .grade-filter-compact .filter-pills {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .grade-filter-compact .filter-pill {
+    flex: 1;
+    min-width: 80px;
+    /* Ensure minimum 44px height for touch targets */
+    min-height: 44px;
+    text-align: center;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .grade-filter-compact .filter-prompt {
+    font-size: 0.95rem;
+  }
+  
+  /* Adjust rose decorations for mobile */
+  .grade-filter-compact.pink-floral::before,
+  .grade-filter-compact.pink-floral::after {
+    font-size: 1.2rem;
+  }
+}
+
+/* Very small mobile (320px-480px) - Optimized for smallest screens */
+@media (max-width: 480px) {
+  .grade-filter-compact {
+    padding: 0.75rem 0.85rem;
+  }
+  
+  .grade-filter-compact .filter-prompt {
+    font-size: 0.9rem;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .grade-filter-compact .filter-pill {
+    font-size: 0.8rem;
+    /* Ensure minimum 44px height for touch targets */
+    min-height: 44px;
+    padding: 0.6rem 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Hide rose decorations on very small screens */
+  .grade-filter-compact.pink-floral::before,
+  .grade-filter-compact.pink-floral::after {
+    display: none;
+  }
+  
+  /* Remove flower decorations from prompts on very small screens */
+  .grade-filter-compact.pink-floral .filter-prompt::before,
+  .grade-filter-compact.pink-floral .filter-prompt::after {
+    display: none;
+  }
+}

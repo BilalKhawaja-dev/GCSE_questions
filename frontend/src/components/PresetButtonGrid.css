@@ -1,0 +1,588 @@
+.preset-selector {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.preset-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.preset-hint .hint-icon {
+  font-size: 1.1rem;
+}
+
+.domain-boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  /* Ensure proper stacking context for dropdowns */
+  isolation: isolate;
+}
+
+.domain-box-wrapper {
+  position: relative;
+  /* Add margin bottom to prevent dropdown overlap */
+  margin-bottom: 0.5rem;
+  /* Ensure proper stacking */
+  z-index: 1;
+  /* Ensure wrapper contains the dropdown */
+  contain: layout;
+}
+
+.domain-box-wrapper:has(.topic-dropdown) {
+  /* Add extra space when dropdown is open */
+  margin-bottom: 1rem;
+  z-index: 100;
+  /* Ensure dropdown is fully visible */
+  overflow: visible;
+}
+
+.domain-box {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-weight: 600;
+  font-size: 1rem;
+  color: white;
+}
+
+.domain-box:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.domain-box:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.domain-box:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.domain-box-label {
+  flex: 1;
+  text-align: left;
+}
+
+.domain-box-arrow {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.topic-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: dropdownSlide 0.2s ease;
+  /* Ensure dropdown doesn't get cut off */
+  min-width: 100%;
+  /* Prevent dropdown from being affected by grid */
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.topic-dropdown-item {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  background: white;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.topic-dropdown-item:last-child {
+  border-bottom: none;
+  border-radius: 0 0 10px 10px;
+}
+
+.topic-dropdown-item:first-child {
+  border-radius: 10px 10px 0 0;
+}
+
+.topic-dropdown-item:hover:not(:disabled) {
+  background: var(--hover-background);
+}
+
+.topic-dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.topic-dropdown-item .topic-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.topic-dropdown-item .topic-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Pink Floral Theme */
+.preset-selector.pink-floral {
+  position: relative;
+  padding: 1.5rem;
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+  padding-left: 3rem;
+  padding-right: 3rem;
+  background: linear-gradient(135deg, rgba(255, 245, 247, 0.9) 0%, rgba(255, 228, 233, 0.9) 100%);
+  border-radius: 16px;
+  border: 2px solid rgba(244, 114, 182, 0.3);
+  box-shadow: 0 8px 32px rgba(244, 114, 182, 0.15);
+}
+
+/* Decorative floral borders on sides */
+.preset-selector.pink-floral::before {
+  content: '🌹\A🌸\A🌺\A🌷\A🌹\A🌸';
+  white-space: pre;
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  line-height: 2.5rem;
+  opacity: 0.4;
+  animation: floatSide 6s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.2));
+}
+
+.preset-selector.pink-floral::after {
+  content: '🌹\A🌸\A🌺\A🌷\A🌹\A🌸';
+  white-space: pre;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  line-height: 2.5rem;
+  opacity: 0.4;
+  animation: floatSide 6s ease-in-out infinite 3s;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.2));
+}
+
+/* Side floating animation */
+@keyframes floatSide {
+  0%, 100% { 
+    transform: translateY(-50%) translateX(0px); 
+  }
+  50% { 
+    transform: translateY(-50%) translateX(3px); 
+  }
+}
+
+/* Rose decoration containers */
+.rose-decoration-top,
+.rose-decoration-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 2rem;
+  z-index: 10;
+}
+
+.rose-decoration-top {
+  top: -10px;
+}
+
+.rose-decoration-bottom {
+  bottom: -10px;
+}
+
+/* Rose icons */
+.rose-icon {
+  font-size: 1.8rem;
+  animation: floatRose 4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.3));
+  display: inline-block;
+}
+
+.rose-icon:nth-child(2) {
+  animation-delay: 1.3s;
+}
+
+.rose-icon:nth-child(3) {
+  animation-delay: 2.6s;
+}
+
+/* Floating rose animation */
+@keyframes floatRose {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+  }
+  50% { 
+    transform: translateY(-8px) rotate(5deg); 
+  }
+}
+
+/* Subtle floral pattern background */
+.preset-selector.pink-floral .domain-boxes {
+  position: relative;
+  background-image: 
+    radial-gradient(circle at 20% 30%, rgba(244, 114, 182, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(251, 207, 232, 0.03) 0%, transparent 70%);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+/* Add decorative floral corners */
+.preset-selector.pink-floral .domain-boxes::before {
+  content: '🌸';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  font-size: 1.3rem;
+  opacity: 0.5;
+  animation: spin 20s linear infinite;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.2));
+}
+
+.preset-selector.pink-floral .domain-boxes::after {
+  content: '🌺';
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  font-size: 1.3rem;
+  opacity: 0.5;
+  animation: spin 20s linear infinite reverse;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.2));
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Enhanced domain box styling with gradients and shadows */
+.preset-selector.pink-floral .domain-box {
+  background: linear-gradient(135deg, var(--domain-color) 0%, var(--domain-color-dark) 100%);
+  box-shadow: 
+    0 4px 12px rgba(244, 114, 182, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer effect on domain boxes */
+.preset-selector.pink-floral .domain-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.preset-selector.pink-floral .domain-box:hover::before {
+  left: 100%;
+}
+
+/* Enhanced hover effects with rose-themed animations */
+.preset-selector.pink-floral .domain-box:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 
+    0 8px 24px rgba(244, 114, 182, 0.4),
+    0 0 20px rgba(236, 72, 153, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Pulse animation on hover */
+@keyframes rosePulse {
+  0%, 100% { 
+    box-shadow: 
+      0 8px 24px rgba(244, 114, 182, 0.4),
+      0 0 20px rgba(236, 72, 153, 0.2);
+  }
+  50% { 
+    box-shadow: 
+      0 8px 24px rgba(244, 114, 182, 0.5),
+      0 0 30px rgba(236, 72, 153, 0.3);
+  }
+}
+
+.preset-selector.pink-floral .domain-box:hover:not(:disabled) {
+  animation: rosePulse 2s ease-in-out infinite;
+}
+
+/* Enhanced dropdown styling */
+.preset-selector.pink-floral .topic-dropdown {
+  background: linear-gradient(to bottom, #ffffff 0%, #fff5f7 100%);
+  border: 2px solid rgba(244, 114, 182, 0.3);
+  box-shadow: 
+    0 12px 40px rgba(244, 114, 182, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  position: relative;
+}
+
+/* Removed rose decorations that interfere with dropdown positioning */
+/*
+.preset-selector.pink-floral .topic-dropdown::before {
+  content: '🌹';
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.3));
+  animation: floatRose 4s ease-in-out infinite;
+}
+
+.preset-selector.pink-floral .topic-dropdown::after {
+  content: '🌸 🌺 🌸';
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.9rem;
+  opacity: 0.6;
+  filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.2));
+  white-space: nowrap;
+}
+*/
+
+/* Enhanced dropdown item hover */
+.preset-selector.pink-floral .topic-dropdown-item {
+  position: relative;
+}
+
+.preset-selector.pink-floral .topic-dropdown-item:hover:not(:disabled) {
+  background: linear-gradient(90deg, #fff0f5 0%, #ffe4e9 100%);
+  border-left: 3px solid #f472b6;
+  padding-left: calc(1rem - 3px);
+  transform: translateX(3px);
+}
+
+/* Add subtle rose icon to dropdown items */
+.preset-selector.pink-floral .topic-dropdown-item::after {
+  content: '🌸';
+  position: absolute;
+  right: 1rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  font-size: 1rem;
+}
+
+.preset-selector.pink-floral .topic-dropdown-item:hover:not(:disabled)::after {
+  opacity: 0.4;
+}
+
+/* Mobile Responsive - Touch-friendly sizes (minimum 44px × 44px) */
+@media (max-width: 768px) {
+  .domain-boxes {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+  
+  .domain-box {
+    /* Ensure minimum 44px height for touch targets */
+    min-height: 44px;
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .topic-dropdown-item {
+    /* Ensure minimum 44px height for touch targets */
+    min-height: 44px;
+    padding: 0.75rem 0.85rem;
+  }
+  
+  .topic-dropdown-item .topic-name {
+    font-size: 0.9rem;
+  }
+  
+  /* Pink floral theme mobile adjustments */
+  .rose-icon {
+    font-size: 1.4rem;
+  }
+  
+  .rose-decoration-top {
+    top: -8px;
+  }
+  
+  .rose-decoration-bottom {
+    bottom: -8px;
+  }
+  
+  .preset-selector.pink-floral {
+    padding: 1.25rem;
+    padding-top: 2.25rem;
+    padding-bottom: 2.25rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+  
+  /* Adjust side decorations for mobile */
+  .preset-selector.pink-floral::before,
+  .preset-selector.pink-floral::after {
+    font-size: 1.2rem;
+    line-height: 2rem;
+  }
+  
+  /* Optimize font sizes for mobile readability */
+  .preset-hint {
+    font-size: 0.9rem;
+  }
+  
+  .preset-hint .hint-icon {
+    font-size: 1rem;
+  }
+}
+
+/* Tablet Responsive (3 columns) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .domain-boxes {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.7rem;
+  }
+}
+
+/* Desktop (4 columns) */
+@media (min-width: 1025px) {
+  .domain-boxes {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+/* Very Small Mobile (320px-480px) - Single column layout */
+@media (max-width: 480px) {
+  .domain-boxes {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .domain-box {
+    /* Ensure minimum 44px height for touch targets */
+    min-height: 44px;
+    padding: 0.9rem 1rem;
+    font-size: 0.95rem;
+  }
+  
+  .topic-dropdown-item {
+    /* Ensure minimum 44px height for touch targets */
+    min-height: 44px;
+    padding: 0.8rem 0.9rem;
+  }
+  
+  /* Adjust rose decorations for very small screens */
+  .rose-icon {
+    font-size: 1.2rem;
+  }
+  
+  .rose-decoration-top,
+  .rose-decoration-bottom {
+    padding: 0 1rem;
+  }
+  
+  .preset-selector.pink-floral {
+    padding: 1rem;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  
+  /* Hide side decorations on very small screens to save space */
+  .preset-selector.pink-floral::before,
+  .preset-selector.pink-floral::after {
+    display: none;
+  }
+  
+  /* Optimize font sizes for very small screens */
+  .preset-hint {
+    font-size: 0.85rem;
+  }
+  
+  .domain-box-label {
+    font-size: 0.9rem;
+  }
+}
+
+
+/* Mobile Performance Optimizations */
+@media (max-width: 768px) {
+  /* Disable expensive animations on mobile */
+  .domain-box {
+    transition: box-shadow 0.2s ease, background-color 0.2s ease !important;
+  }
+  
+  .domain-box:hover:not(:disabled) {
+    transform: none !important;
+  }
+  
+  .topic-dropdown {
+    animation: none !important;
+    transform: translateZ(0);
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .topic-dropdown-item {
+    transition: background-color 0.15s ease !important;
+  }
+  
+  .topic-dropdown-item:hover {
+    transform: none !important;
+  }
+  
+  /* Disable shimmer effects on mobile */
+  .preset-selector.pink-floral .domain-box::before {
+    display: none;
+  }
+  
+  .preset-selector.pink-floral .domain-box:hover:not(:disabled) {
+    animation: none !important;
+  }
+}

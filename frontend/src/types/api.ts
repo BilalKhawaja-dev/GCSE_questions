@@ -28,19 +28,41 @@ export interface MarkScheme {
 }
 
 export interface QuestionResponse {
-  questions: Question[];
-  mark_scheme: MarkScheme[];
-  metadata: {
+  success?: boolean;
+  questions?: Question[]; // Made optional for async responses
+  mark_scheme?: MarkScheme[]; // Made optional for async responses
+  session_id?: string;
+  request_id?: string;
+  generated_at?: string;
+  metadata?: {
     generated_at: string;
     model_version: string;
     total_marks: number;
     specification_version?: string;
+    completion_status?: 'complete' | 'partial_timeout';
+    message?: string;
+    async_generation?: boolean;
+    job_id?: string;
+    generation_time?: number;
   };
+  // Async response fields
+  async?: boolean;
+  job_id?: string;
+  status?: 'processing' | 'completed' | 'failed';
+  progress?: number;
+  estimated_completion_minutes?: number;
+  message?: string; // Added for async status messages
+  polling_info?: {
+    check_status_endpoint: string;
+    recommended_poll_interval_seconds: number;
+    max_wait_time_minutes: number;
+  };
+  suggestions?: string[];
 }
 
 export interface ApiError {
   error: {
-    type: 'ValidationError' | 'TimeoutError' | 'ServiceUnavailable' | 'InternalError' | 'AuthenticationError';
+    type: 'ValidationError' | 'TimeoutError' | 'TimeoutWarning' | 'ServiceUnavailable' | 'InternalError' | 'AuthenticationError';
     message: string;
     details?: string;
     request_id: string;
@@ -48,6 +70,7 @@ export interface ApiError {
     guidance?: string;
     retry_after?: number;
   };
+  suggestions?: string[];
 }
 
 export interface InterpretRequest {
@@ -110,6 +133,13 @@ export interface SessionMetadata {
   specification_version?: string;
   created_at: string;
   request_id: string;
+  // Async job fields
+  status?: 'processing' | 'completed' | 'failed';
+  progress?: number;
+  job_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error?: string;
 }
 
 export interface SessionSummary {

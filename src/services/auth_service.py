@@ -113,9 +113,22 @@ class AuthService:
             # Store user in DynamoDB
             self.users_table.put_item(Item=user.to_dynamodb_item())
             
-            # Generate session token
-            session_token = self._generate_session_token()
+            # Generate session token with username encoded
+            session_token = self._generate_session_token(request.username)
             expires_at = datetime.utcnow() + timedelta(days=7)
+            
+            # Store session token in Users table
+            try:
+                self.users_table.update_item(
+                    Key={'pk': f'USER#{request.username}'},
+                    UpdateExpression='SET session_token = :token, session_expires_at = :expires',
+                    ExpressionAttributeValues={
+                        ':token': session_token,
+                        ':expires': expires_at.isoformat()
+                    }
+                )
+            except ClientError as e:
+                logger.warning(f"Failed to store session token: {str(e)}")
             
             return AuthResponse(
                 success=True,
@@ -172,20 +185,22 @@ class AuthService:
             
             # Update last login
             try:
+                # Generate new session token with username encoded
+                session_token = self._generate_session_token(request.username)
+                expires_at = datetime.utcnow() + timedelta(days=7)
+                
                 self.users_table.update_item(
                     Key={'pk': f'USER#{request.username}'},
-                    UpdateExpression='SET last_login = :timestamp',
+                    UpdateExpression='SET last_login = :timestamp, session_token = :token, session_expires_at = :expires',
                     ExpressionAttributeValues={
-                        ':timestamp': datetime.utcnow().isoformat()
+                        ':timestamp': datetime.utcnow().isoformat(),
+                        ':token': session_token,
+                        ':expires': expires_at.isoformat()
                     }
                 )
             except ClientError:
-                # Don't fail login if we can't update last_login
+                # Don't fail login if we can't update
                 pass
-            
-            # Generate session token
-            session_token = self._generate_session_token()
-            expires_at = datetime.utcnow() + timedelta(days=7)
             
             return AuthResponse(
                 success=True,
@@ -207,28 +222,57 @@ class AuthService:
             if not session_token or len(session_token) < 32:
                 return False, None
             
-            # In a production system, you would store session tokens in a separate table
-            # For now, we'll implement a simple validation approach
-            # This is a simplified implementation - in production you'd want to store
-            # session tokens in DynamoDB with TTL and proper user association
-            
-            # For this implementation, we'll use a basic token structure validation
-            # and assume tokens are valid if they meet security requirements
-            # In a real system, you'd query a sessions table to validate the token
-            # and get the associated user_id
-            
-            # Basic validation: token should be URL-safe base64 and proper length
-            import string
-            url_safe_chars = string.ascii_letters + string.digits + '-_'
-            if not all(c in url_safe_chars for c in session_token):
+            # Extract username from token (format: username_encoded.random_part)
+            if '.' in session_token:
+                try:
+                    import base64
+                    username_encoded = session_token.split('.')[0]
+                    # Add padding if needed
+                    padding = 4 - (len(username_encoded) % 4)
+                    if padding != 4:
+                        username_encoded += '=' * padding
+                    username = base64.urlsafe_b64decode(username_encoded).decode()
+                    
+                    # Verify the user exists and token matches
+                    try:
+                        response = self.users_table.get_item(
+                            Key={'pk': f'USER#{username}'}
+                        )
+                        
+                        if 'Item' not in response:
+                            return False, None
+                        
+                        user_item = response['Item']
+                        stored_token = user_item.get('session_token')
+                        session_expires_at = user_item.get('session_expires_at')
+                        
+                        # Verify token matches
+                        if stored_token != session_token:
+                            return False, None
+                        
+                        # Check if session is expired
+                        if session_expires_at:
+                            from datetime import datetime
+                            try:
+                                expiry_time = datetime.fromisoformat(session_expires_at.replace('Z', '+00:00'))
+                                if datetime.utcnow() > expiry_time:
+                                    return False, None
+                            except:
+                                return False, None
+                        
+                        return True, username
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to validate token for user {username}: {str(e)}")
+                        return False, None
+                    
+                except Exception as e:
+                    logger.error(f"Failed to decode username from token: {str(e)}")
+                    return False, None
+            else:
+                # Old format token without username - fall back to scan (slow)
+                logger.warning("Old format session token detected, using scan")
                 return False, None
-            
-            # For this simplified implementation, we'll extract a mock user_id
-            # In production, this would be a database lookup
-            # This is a placeholder implementation
-            mock_user_id = "test_user"  # In production: query sessions table
-            
-            return True, mock_user_id
             
         except Exception as e:
             logger.error(f"Session validation error: {str(e)}")
@@ -306,9 +350,15 @@ class AuthService:
             logger.error(f"Unexpected error getting user info: {str(e)}")
             return None
     
-    def _generate_session_token(self) -> str:
-        """Generate cryptographically secure session token."""
-        return secrets.token_urlsafe(32)
+    def _generate_session_token(self, username: str = None) -> str:
+        """Generate cryptographically secure session token with optional username encoding."""
+        random_part = secrets.token_urlsafe(32)
+        if username:
+            # Encode username in the token for easy lookup
+            import base64
+            username_encoded = base64.urlsafe_b64encode(username.encode()).decode().rstrip('=')
+            return f"{username_encoded}.{random_part}"
+        return random_part
 
 
 # Singleton instance for use across the application

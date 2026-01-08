@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { QuestionResponse } from '../types/api';
+import { QuestionResponse, Question, MarkScheme } from '../types/api';
 import FeedbackWidget from './FeedbackWidget';
 import { formatMathematicalText } from '../utils/mathFormatting';
 import './QuestionDisplay.css';
 
 interface QuestionDisplayProps {
   questionData: QuestionResponse;
+  theme?: 'default' | 'pink-floral';
 }
 
-const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData }) => {
+const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData, theme = 'default' }) => {
   const [showAllAnswers, setShowAllAnswers] = useState(false);
 
   const formatDate = (dateString: string) => {
@@ -19,7 +20,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData }) => {
     }
   };
 
-  const getMarkSchemeForQuestion = (question: QuestionResponse['questions'][0]) => {
+  const getMarkSchemeForQuestion = (question: Question) => {
     // First try to find existing mark scheme
     const existingScheme = questionData.mark_scheme?.find(ms => ms.question_id === question.id);
     if (existingScheme) return existingScheme;
@@ -39,7 +40,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData }) => {
 
   // Calculate total marks from questions if metadata is not available
   const totalMarks = questionData.metadata?.total_marks ?? 
-    questionData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+    (questionData.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 0);
   
   // Get generated_at from metadata or root level
   const generatedAt = questionData.metadata?.generated_at || (questionData as any).generated_at;
@@ -48,10 +49,71 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData }) => {
   const modelVersion = questionData.metadata?.model_version || 'v2';
 
   // Get session_id for feedback (use first question's id as fallback)
-  const sessionId = (questionData as any).session_id || questionData.questions[0]?.id || 'unknown';
+  const sessionId = (questionData as any).session_id || questionData.questions?.[0]?.id || 'unknown';
+
+  // Handle async responses that don't have questions yet
+  if ((questionData as any).async && !questionData.questions?.length) {
+    return (
+      <div className="question-display">
+        <div className="question-header">
+          <h2>Processing Your Request</h2>
+          <div className="metadata">
+            <span className="status-badge processing">
+              {(questionData as any).status || 'Processing'}
+            </span>
+          </div>
+        </div>
+        
+        <div className="async-status">
+          <div className="progress-info">
+            <p>{(questionData as any).message || 'Your questions are being generated...'}</p>
+            <div className="progress-details">
+              <span>Job ID: {(questionData as any).job_id}</span>
+              <span>Estimated time: {(questionData as any).estimated_completion_minutes || 2} minutes</span>
+            </div>
+          </div>
+          
+          <div className="polling-info">
+            <p>The page will automatically update when your questions are ready.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure we have questions before rendering
+  if (!questionData.questions || questionData.questions.length === 0) {
+    return (
+      <div className="question-display">
+        <div className="question-header">
+          <h2>No Questions Available</h2>
+        </div>
+        <div className="no-questions">
+          <p>No questions were generated. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="question-display">
+    <div className={`question-display ${theme === 'pink-floral' ? 'pink-floral' : ''}`}>
+      {theme === 'pink-floral' && (
+        <>
+          <div className="rose-decoration-left">
+            <span className="rose-icon">🌹</span>
+            <span className="rose-icon">🌸</span>
+            <span className="rose-icon">🌺</span>
+            <span className="rose-icon">🌷</span>
+          </div>
+          <div className="rose-decoration-right">
+            <span className="rose-icon">🌹</span>
+            <span className="rose-icon">🌸</span>
+            <span className="rose-icon">🌺</span>
+            <span className="rose-icon">🌷</span>
+          </div>
+        </>
+      )}
+      
       <div className="question-header">
         <h2>Generated Questions</h2>
         <div className="metadata">
@@ -123,8 +185,8 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData }) => {
 };
 
 interface QuestionItemProps {
-  question: QuestionResponse['questions'][0];
-  markScheme?: QuestionResponse['mark_scheme'][0];
+  question: Question;
+  markScheme?: MarkScheme;
   questionNumber: number;
   showAnswer: boolean;
 }
@@ -149,7 +211,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, markScheme, quest
             <span className="topic-badge">{question.topic}</span>
             <span className="marks-badge">{question.marks} mark{question.marks !== 1 ? 's' : ''}</span>
             {question.difficulty_score && (
-              <span className="difficulty-badge">Difficulty: {question.difficulty_score}/10</span>
+              <span className="difficulty-badge">Grade: {question.difficulty_score}/9</span>
             )}
           </div>
           

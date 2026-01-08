@@ -323,13 +323,24 @@ Return ONLY a JSON object with this exact structure:
             Exception: If response cannot be parsed
         """
         try:
-            # Extract JSON from response (handle potential markdown formatting)
+            # Extract JSON from response - use JSONDecoder to handle extra data
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if not json_match:
                 raise ValueError("No JSON found in response")
             
             json_str = json_match.group(0)
-            parsed_data = json.loads(json_str)
+            
+            # Use JSONDecoder.raw_decode to handle extra data after JSON
+            try:
+                parsed_data = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                if "Extra data" in str(e):
+                    # Extract just the first complete JSON object
+                    decoder = json.JSONDecoder()
+                    parsed_data, idx = decoder.raw_decode(json_str)
+                    logger.warning(f"Extracted first JSON object, ignoring extra data after position {idx}")
+                else:
+                    raise
             
             # Validate required fields
             required_fields = ['topic', 'tier', 'count', 'confidence']
@@ -523,84 +534,180 @@ Return ONLY a JSON object with this exact structure:
     def _construct_generation_prompt(self, generation_request: Dict[str, Any], 
                                    spec_content: Dict[str, Any], 
                                    examples_content: List[Dict[str, Any]]) -> str:
-        """Construct structured prompt for question generation."""
+        """Construct structured prompt for question generation with enhanced content usage."""
         
-        # Format examples for the prompt
+        # Format examples for the prompt with detailed analysis
         examples_text = ""
         if examples_content:
-            examples_text = "\n\nSeed Examples:\n"
-            for i, example in enumerate(examples_content[:3], 1):  # Limit to 3 examples
+            examples_text = "\n\nHigh-Quality Seed Examples (USE THESE AS MODELS):\n"
+            for i, example in enumerate(examples_content[:5], 1):  # Use up to 5 examples
                 question = example.get('question', {})
                 mark_scheme = example.get('mark_scheme', {})
+                quality_score = example.get('quality_score', 0)
+                
                 examples_text += f"""
-Example {i}:
+Example {i} (Quality Score: {quality_score:.2f}):
 Question: {question.get('question_text', 'N/A')}
 Marks: {question.get('marks', 'N/A')}
+Difficulty: {question.get('difficulty_score', 'N/A')}/10
 Mark Scheme: {mark_scheme.get('marking_criteria', 'N/A')}
+Answer: {question.get('answer', mark_scheme.get('answer', 'N/A'))}
+
+ANALYSIS: This example demonstrates {self._analyze_example_quality(question, mark_scheme)}
 """
         
-        # Format specification content
+        # Enhanced specification content formatting
         spec_text = f"""
-Specification Content:
+SPECIFICATION REQUIREMENTS (MUST FOLLOW):
 Topic: {spec_content.get('subtopic', generation_request.get('topic'))}
 Tier: {generation_request.get('tier')}
 Learning Objectives: {', '.join(spec_content.get('learning_objectives', []))}
-Key Concepts: {', '.join(spec_content.get('key_concepts', []))}
-Content: {spec_content.get('specification_content', 'No specific content available')}
+Key Concepts to Test: {', '.join(spec_content.get('key_concepts', []))}
+Common Misconceptions to Address: {', '.join(spec_content.get('common_misconceptions', []))}
+Assessment Objectives: {', '.join(spec_content.get('assessment_objectives', ['AO1', 'AO2']))}
+Marks Range: {spec_content.get('marks_range', [2, 6])}
+
+Detailed Content: {spec_content.get('specification_content', 'No specific content available')}
 """
         
-        return f"""You are an expert GCSE mathematics question writer. Generate {generation_request.get('count')} high-quality exam questions based on the specification and examples provided.
+        # Add content-driven instructions
+        content_instructions = self._generate_content_instructions(spec_content, examples_content)
+        
+        return f"""You are an expert GCSE mathematics question writer creating questions based on official Edexcel specifications and high-quality examples.
 
 {spec_text}{examples_text}
 
-Requirements:
-1. Generate exactly {generation_request.get('count')} questions
-2. Each question must be appropriate for {generation_request.get('tier')} tier
-3. Questions must align with the specification content and learning objectives
-4. Include detailed mark schemes with method and accuracy marks
-5. Use clear mathematical notation with LaTeX for complex expressions:
-   - Fractions: \\frac{{3}}{{4}} for complex fractions, or 3/4 for simple ones
-   - Powers: x^2 for simple powers, x^{{n+1}} for complex exponents
-   - Square roots: \\sqrt{{16}} or sqrt(16)
-   - Mathematical operators: \\times, \\div, \\pm, \\leq, \\geq
-   - Greek letters: \\pi, \\theta, \\alpha, etc.
-6. Ensure questions test the key concepts listed in the specification
-7. Vary question difficulty within the tier level
-8. Make questions realistic and practical where possible
-9. CRITICAL: Assign difficulty scores (1-10 scale):
+CONTENT-DRIVEN INSTRUCTIONS:
+{content_instructions}
+
+CRITICAL REQUIREMENTS:
+1. Generate exactly {generation_request.get('count')} questions that DIRECTLY test the specification content above
+2. Each question MUST align with the learning objectives and key concepts listed
+3. Address the common misconceptions identified in the specification
+4. Follow the style and quality patterns shown in the seed examples
+5. Use the specification content as the PRIMARY source for question contexts and scenarios
+6. Ensure mathematical accuracy and appropriate difficulty for {generation_request.get('tier')} tier
+7. Include detailed mark schemes that match the assessment objectives
+8. CRITICAL: Assign difficulty scores (1-10 scale):
    - Foundation tier: Use scores 1-5 (1=very easy, 5=challenging foundation)
    - Higher tier: Use scores 6-10 (6=easy higher, 10=very challenging)
+
+QUESTION GENERATION STRATEGY:
+- Use real-world contexts from the specification content
+- Test multiple key concepts per question where appropriate
+- Create questions that reveal common misconceptions
+- Vary question types (calculation, problem-solving, reasoning)
+- Ensure each question has clear mathematical progression
 
 Return your response as a JSON object with this exact structure:
 {{
     "questions": [
         {{
             "id": "q1",
-            "question_text": "Question text with LaTeX notation where appropriate",
+            "question_text": "Question text based on specification content",
             "marks": 3,
             "tier": "{generation_request.get('tier')}",
             "topic": "{generation_request.get('topic')}",
             "subtopic": "{generation_request.get('subtopic', '')}",
-            "difficulty_score": 4
+            "difficulty_score": 4,
+            "specification_alignment": "Brief note on how this tests the specification",
+            "key_concepts_tested": ["concept1", "concept2"]
         }}
     ],
     "mark_scheme": [
         {{
             "question_id": "q1",
-            "marking_criteria": "M1: Method mark description, A1: Accuracy mark description",
+            "marking_criteria": "M1: Method mark description based on specification, A1: Accuracy mark description",
             "method_marks": 2,
-            "accuracy_marks": 1
+            "accuracy_marks": 1,
+            "common_errors": ["error1", "error2"]
         }}
     ],
     "metadata": {{
         "generated_at": "{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}",
         "model_version": "claude-3-sonnet-20240229",
         "total_marks": 0,
-        "specification_version": "{generation_request.get('specification_version', 'latest')}"
+        "specification_version": "{generation_request.get('specification_version', 'latest')}",
+        "content_utilization": {{
+            "specification_concepts_used": [],
+            "examples_referenced": {len(examples_content)},
+            "misconceptions_addressed": []
+        }}
     }}
 }}
 
-Ensure the JSON is valid and complete. The total_marks in metadata should equal the sum of all question marks. Each question MUST include a difficulty_score field."""
+Ensure the JSON is valid and complete. The total_marks in metadata should equal the sum of all question marks."""
+    
+    def _analyze_example_quality(self, question: Dict[str, Any], mark_scheme: Dict[str, Any]) -> str:
+        """Analyze what makes an example high quality."""
+        analysis_points = []
+        
+        question_text = question.get('question_text', '')
+        marks = question.get('marks', 0)
+        
+        # Analyze question structure
+        if len(question_text) > 50:
+            analysis_points.append("appropriate question length")
+        
+        if marks >= 3:
+            analysis_points.append("multi-step problem requiring method marks")
+        
+        # Analyze mathematical content
+        if any(char in question_text for char in '+-×÷=<>()[]{}'):
+            analysis_points.append("clear mathematical notation")
+        
+        # Analyze mark scheme
+        marking_criteria = mark_scheme.get('marking_criteria', '')
+        if 'M1' in marking_criteria or 'method' in marking_criteria.lower():
+            analysis_points.append("structured marking with method and accuracy marks")
+        
+        if len(analysis_points) == 0:
+            return "basic question structure"
+        
+        return ", ".join(analysis_points)
+    
+    def _generate_content_instructions(self, spec_content: Dict[str, Any], examples_content: List[Dict[str, Any]]) -> str:
+        """Generate specific instructions based on available content."""
+        instructions = []
+        
+        # Instructions based on specification content
+        learning_objectives = spec_content.get('learning_objectives', [])
+        if learning_objectives:
+            instructions.append(f"- Test these specific learning objectives: {'; '.join(learning_objectives[:3])}")
+        
+        key_concepts = spec_content.get('key_concepts', [])
+        if key_concepts:
+            instructions.append(f"- Incorporate these key concepts: {', '.join(key_concepts[:5])}")
+        
+        misconceptions = spec_content.get('common_misconceptions', [])
+        if misconceptions:
+            instructions.append(f"- Design questions to reveal these misconceptions: {'; '.join(misconceptions[:2])}")
+        
+        # Instructions based on examples
+        if examples_content:
+            example_topics = set()
+            example_difficulties = []
+            
+            for example in examples_content[:3]:
+                question = example.get('question', {})
+                if 'subtopic' in question:
+                    example_topics.add(question['subtopic'])
+                if 'difficulty_score' in question:
+                    example_difficulties.append(question['difficulty_score'])
+            
+            if example_topics:
+                instructions.append(f"- Follow the style patterns from examples covering: {', '.join(example_topics)}")
+            
+            if example_difficulties:
+                avg_difficulty = sum(example_difficulties) / len(example_difficulties)
+                instructions.append(f"- Target similar difficulty level as examples (average: {avg_difficulty:.1f}/10)")
+        
+        # Default instruction if no specific content
+        if not instructions:
+            instructions.append("- Create questions that test fundamental understanding of the topic")
+            instructions.append("- Ensure questions are appropriate for the specified tier level")
+        
+        return "\n".join(instructions)
     
     def _parse_sonnet_response(self, response: str, generation_request: Dict[str, Any], request_id: str) -> Dict[str, Any]:
         """

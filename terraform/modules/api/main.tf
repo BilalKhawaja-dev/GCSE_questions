@@ -167,6 +167,29 @@ resource "aws_iam_role" "topic_coverage_lambda_role" {
   }
 }
 
+# IAM role for AsyncWorkerLambda
+resource "aws_iam_role" "async_worker_lambda_role" {
+  name = "gcse-async-worker-lambda-role-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "AsyncWorkerLambda Execution Role"
+    Environment = var.environment
+  }
+}
+
 # Basic Lambda execution policy for InterpretLambda
 resource "aws_iam_role_policy_attachment" "interpret_lambda_basic" {
   role       = aws_iam_role.interpret_lambda_role.name
@@ -232,6 +255,12 @@ resource "aws_iam_role_policy_attachment" "topic_coverage_lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Basic Lambda execution policy for AsyncWorkerLambda
+resource "aws_iam_role_policy_attachment" "async_worker_lambda_basic" {
+  role       = aws_iam_role.async_worker_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
 # Basic Lambda execution policy for GenerateLambda
 resource "aws_iam_role_policy_attachment" "generate_lambda_basic" {
   role       = aws_iam_role.generate_lambda_role.name
@@ -292,7 +321,8 @@ resource "aws_iam_role_policy" "auth_dynamodb_policy" {
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
-          "dynamodb:Query"
+          "dynamodb:Query",
+          "dynamodb:Scan"
         ]
         Resource = [
           aws_dynamodb_table.users.arn,
@@ -358,6 +388,8 @@ resource "aws_iam_role_policy" "generate_dynamodb_policy" {
         Effect = "Allow"
         Action = [
           "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:GetItem",
           "dynamodb:Query"
         ]
         Resource = [
@@ -375,6 +407,26 @@ resource "aws_iam_role_policy" "generate_dynamodb_policy" {
           "kms:DescribeKey"
         ]
         Resource = aws_kms_key.dynamodb_key.arn
+      }
+    ]
+  })
+}
+
+# SQS access policy for GenerateLambda (to send messages)
+resource "aws_iam_role_policy" "generate_sqs_policy" {
+  name = "generate-sqs-policy"
+  role = aws_iam_role.generate_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = aws_sqs_queue.async_generation_queue.arn
       }
     ]
   })
@@ -571,6 +623,115 @@ resource "aws_iam_role_policy" "topic_coverage_dynamodb_policy" {
   })
 }
 
+# Bedrock policy for AsyncWorkerLambda (Sonnet only)
+resource "aws_iam_role_policy" "async_worker_bedrock_policy" {
+  name = "async-worker-bedrock-policy"
+  role = aws_iam_role.async_worker_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = "arn:aws:bedrock:eu-west-2::foundation-model/${var.bedrock_model_sonnet}"
+      }
+    ]
+  })
+}
+
+# DynamoDB access policy for AsyncWorkerLambda
+resource "aws_iam_role_policy" "async_worker_dynamodb_policy" {
+  name = "async-worker-dynamodb-policy"
+  role = aws_iam_role.async_worker_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:GetItem",
+          "dynamodb:Query"
+        ]
+        Resource = [
+          aws_dynamodb_table.sessions.arn,
+          "${aws_dynamodb_table.sessions.arn}/index/*",
+          aws_dynamodb_table.topic_coverage.arn,
+          "${aws_dynamodb_table.topic_coverage.arn}/index/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:DescribeKey"
+        ]
+        Resource = aws_kms_key.dynamodb_key.arn
+      }
+    ]
+  })
+}
+
+# SQS access policy for AsyncWorkerLambda (to receive and delete messages)
+resource "aws_iam_role_policy" "async_worker_sqs_policy" {
+  name = "async-worker-sqs-policy"
+  role = aws_iam_role.async_worker_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ]
+        Resource = aws_sqs_queue.async_generation_queue.arn
+      }
+    ]
+  })
+}
+
+# S3 access policy for AsyncWorkerLambda
+resource "aws_iam_role_policy" "async_worker_s3_policy" {
+  name = "async-worker-s3-policy"
+  role = aws_iam_role.async_worker_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.specifications_bucket_name}/*",
+          "arn:aws:s3:::${var.examples_bucket_name}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.specifications_bucket_name}",
+          "arn:aws:s3:::${var.examples_bucket_name}"
+        ]
+      }
+    ]
+  })
+}
+
 # S3 access policy for InterpretLambda
 resource "aws_iam_role_policy" "interpret_s3_policy" {
   name = "interpret-s3-policy"
@@ -598,6 +759,25 @@ resource "aws_iam_role_policy" "interpret_s3_policy" {
           "arn:aws:s3:::${var.specifications_bucket_name}",
           "arn:aws:s3:::${var.examples_bucket_name}"
         ]
+      }
+    ]
+  })
+}
+
+# Lambda self-invoke policy for GenerateLambda (for async processing)
+resource "aws_iam_role_policy" "generate_lambda_self_invoke_policy" {
+  name = "generate-lambda-self-invoke-policy"
+  role = aws_iam_role.generate_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = aws_lambda_function.generate_lambda.arn
       }
     ]
   })
@@ -726,7 +906,7 @@ resource "aws_lambda_function" "generate_lambda" {
   role         = aws_iam_role.generate_lambda_role.arn
   handler      = "src.lambda_handlers.generate_lambda.lambda_handler"
   runtime      = "python3.11"
-  timeout      = 60
+  timeout      = 300  # Increased to 5 minutes for large question sets
   memory_size  = 1024
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
@@ -738,6 +918,8 @@ resource "aws_lambda_function" "generate_lambda" {
       SPECIFICATIONS_BUCKET    = var.specifications_bucket_name
       EXAMPLES_BUCKET         = var.examples_bucket_name
       SESSIONS_TABLE_NAME      = aws_dynamodb_table.sessions.name
+      TOPIC_COVERAGE_TABLE_NAME = aws_dynamodb_table.topic_coverage.name
+      ASYNC_QUEUE_URL          = aws_sqs_queue.async_generation_queue.url
       REGION                  = "eu-west-2"
       ENVIRONMENT             = var.environment
     }
@@ -863,6 +1045,49 @@ resource "aws_lambda_function" "topic_coverage_lambda" {
   }
 }
 
+# AsyncWorkerLambda function for processing SQS messages
+resource "aws_lambda_function" "async_worker_lambda" {
+  function_name = "gcse-async-worker-lambda-${var.environment}"
+  role         = aws_iam_role.async_worker_lambda_role.arn
+  handler      = "src.lambda_handlers.async_worker_lambda.lambda_handler"
+  runtime      = "python3.11"
+  timeout      = 300  # 5 minutes for question generation
+  memory_size  = 1024
+
+  s3_bucket = data.aws_s3_object.lambda_packages.bucket
+  s3_key    = data.aws_s3_object.lambda_packages.key
+
+  environment {
+    variables = {
+      BEDROCK_MODEL_ID         = var.bedrock_model_sonnet
+      SPECIFICATIONS_BUCKET    = var.specifications_bucket_name
+      EXAMPLES_BUCKET         = var.examples_bucket_name
+      SESSIONS_TABLE_NAME      = aws_dynamodb_table.sessions.name
+      TOPIC_COVERAGE_TABLE_NAME = aws_dynamodb_table.topic_coverage.name
+      REGION                  = "eu-west-2"
+      ENVIRONMENT             = var.environment
+    }
+  }
+
+  tags = {
+    Name        = "GCSE AsyncWorkerLambda"
+    Environment = var.environment
+    Purpose     = "Background worker for async question generation"
+  }
+}
+
+# SQS Event Source Mapping for AsyncWorkerLambda
+resource "aws_lambda_event_source_mapping" "async_worker_sqs_trigger" {
+  event_source_arn = aws_sqs_queue.async_generation_queue.arn
+  function_name    = aws_lambda_function.async_worker_lambda.arn
+  batch_size       = 1  # Process one job at a time
+  enabled          = true
+
+  scaling_config {
+    maximum_concurrency = 5  # Allow up to 5 concurrent workers
+  }
+}
+
 # CloudWatch log groups for Lambda functions
 resource "aws_cloudwatch_log_group" "auth_lambda_logs" {
   name              = "/aws/lambda/${aws_lambda_function.auth_lambda.function_name}"
@@ -943,6 +1168,16 @@ resource "aws_cloudwatch_log_group" "topic_coverage_lambda_logs" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "async_worker_lambda_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.async_worker_lambda.function_name}"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "AsyncWorkerLambda Logs"
+    Environment = var.environment
+  }
+}
+
 # EventBridge rule for RefinementLambda (weekly schedule)
 resource "aws_cloudwatch_event_rule" "refinement_schedule" {
   name                = "gcse-refinement-schedule-${var.environment}"
@@ -979,6 +1214,32 @@ resource "aws_lambda_permission" "allow_eventbridge_refinement" {
   function_name = aws_lambda_function.refinement_lambda.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.refinement_schedule.arn
+}
+
+# SQS Queue for async question generation
+resource "aws_sqs_queue" "async_generation_queue" {
+  name                       = "gcse-async-generation-queue-${var.environment}"
+  visibility_timeout_seconds = 900  # 15 minutes (3x Lambda timeout)
+  message_retention_seconds  = 3600  # 1 hour
+  receive_wait_time_seconds  = 20   # Long polling
+
+  tags = {
+    Name        = "Async Generation Queue"
+    Environment = var.environment
+    Purpose     = "Queue for large question generation requests"
+  }
+}
+
+# Dead Letter Queue for async generation failures
+resource "aws_sqs_queue" "async_generation_dlq" {
+  name                      = "gcse-async-generation-dlq-${var.environment}"
+  message_retention_seconds = 1209600  # 14 days
+
+  tags = {
+    Name        = "Async Generation DLQ"
+    Environment = var.environment
+    Purpose     = "Error handling for failed async generation"
+  }
 }
 
 # Dead Letter Queue for RefinementLambda error handling

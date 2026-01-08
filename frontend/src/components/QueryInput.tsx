@@ -5,11 +5,23 @@ interface QueryInputProps {
   onSubmit: (query: string) => void;
   loading: boolean;
   disabled?: boolean;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
-const QueryInput: React.FC<QueryInputProps> = ({ onSubmit, loading, disabled = false }) => {
-  const [query, setQuery] = useState('');
+const QueryInput: React.FC<QueryInputProps> = ({ 
+  onSubmit, 
+  loading, 
+  disabled = false,
+  value: externalValue,
+  onChange: externalOnChange
+}) => {
+  const [internalQuery, setInternalQuery] = useState('');
   const [charCount, setCharCount] = useState(0);
+  
+  // Use external value if provided, otherwise use internal state
+  const query = externalValue !== undefined ? externalValue : internalQuery;
+  const setQuery = externalOnChange || setInternalQuery;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -30,6 +42,13 @@ const QueryInput: React.FC<QueryInputProps> = ({ onSubmit, loading, disabled = f
     setQuery('');
     setCharCount(0);
   };
+  
+  // Update char count when external value changes
+  React.useEffect(() => {
+    if (externalValue !== undefined) {
+      setCharCount(externalValue.length);
+    }
+  }, [externalValue]);
 
   const isNearLimit = charCount > 400;
   const isAtLimit = charCount >= 500;

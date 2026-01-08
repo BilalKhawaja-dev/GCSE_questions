@@ -21,7 +21,7 @@ bedrock_service = BedrockService(region=AWS_REGION)
 
 def lambda_handler(event, context):
     """
-    AWS Lambda handler for question generation.
+    AWS Lambda handler for question generation with async support for large requests.
     """
     import uuid
     from datetime import datetime
@@ -31,16 +31,12 @@ def lambda_handler(event, context):
     
     logger.info(f"GenerateLambda invocation started - Request ID: {request_id}")
     
+    # Check if this is an async processing invocation
+    if event.get('async_processing'):
+        return handle_async_processing(event, context)
+    
     try:
-        # Get user info from API Gateway authorizer context
-        authorizer_context = event.get('requestContext', {}).get('authorizer', {})
-        user_id = authorizer_context.get('user_id')
-        session_token = authorizer_context.get('session_token')
-        
-        if not user_id:
-            return create_error_response(400, "User not authenticated", request_id)
-        
-        # Parse request body
+        # Parse request body first
         if 'body' not in event or not event['body']:
             return create_error_response(400, "Request body is required", request_id)
         
@@ -49,20 +45,46 @@ def lambda_handler(event, context):
         except json.JSONDecodeError:
             return create_error_response(400, "Invalid JSON in request body", request_id)
         
+        # Get user info - handle both API Gateway and Function URL requests
+        authorizer_context = event.get('requestContext', {}).get('authorizer', {})
+        user_id = authorizer_context.get('user_id') or body.get('user_id')
+        session_token = authorizer_context.get('session_token') or body.get('session_token')
+        
+        # Basic auth check
+        if not user_id or not session_token:
+            return create_error_response(401, "Authentication required", request_id)
+        
         # Extract required fields
         topic = body.get('topic')
         tier = body.get('tier')
         count = body.get('count', 1)
         enriched_prompt = body.get('enriched_prompt', '')
+        async_mode = body.get('async', False)  # Allow client to request async mode
         
         # Basic validation
         if not all([topic, tier]):
             return create_error_response(400, "Missing required fields: topic, tier", request_id)
         
-        if count < 1 or count > 100:
-            return create_error_response(400, "Count must be between 1 and 100", request_id)
+        if count < 1 or count > 50:
+            return create_error_response(400, "Count must be between 1 and 50", request_id)
         
-        # Generate questions using Bedrock
+        # Determine if we should use async mode based on count or explicit request
+        # Use async processing for requests > 8 questions via SQS
+        # Keep threshold low to avoid API Gateway timeouts
+        use_async = count > 8 or async_mode
+        
+        if use_async:
+            # For large requests, send to SQS and return immediately with job ID
+            return handle_async_generation_sqs(
+                topic=topic,
+                tier=tier,
+                count=count,
+                enriched_prompt=enriched_prompt,
+                user_id=user_id,
+                request_id=request_id
+            )
+        
+        # For smaller requests, process synchronously
         try:
             questions = generate_questions_with_bedrock(
                 topic=topic,
@@ -153,24 +175,451 @@ def lambda_handler(event, context):
         return create_error_response(500, "Internal server error", request_id)
 
 
-def generate_questions_with_bedrock(topic: str, tier: str, count: int, enriched_prompt: str, request_id: str) -> list:
-    """Generate questions using Bedrock Claude."""
+def handle_async_processing(event, context):
+    """
+    Handle async processing invocation from Lambda.
+    """
+    import time
+    from datetime import datetime
     
-    # Build the prompt for question generation with answers
-    prompt = f"""Generate {count} GCSE Mathematics exam questions for {tier} tier on the topic of {topic}.
+    job_id = event.get('job_id')
+    session_id = event.get('session_id')
+    topic = event.get('topic')
+    tier = event.get('tier')
+    count = event.get('count')
+    enriched_prompt = event.get('enriched_prompt', '')
+    user_id = event.get('user_id')
+    request_id = event.get('request_id')
+    
+    logger.info(f"Processing async job {job_id} for {count} questions")
+    
+    try:
+        from src.services.session_service import SessionService
+        session_service = SessionService(region=AWS_REGION)
+        
+        # Update job status to processing
+        job_metadata = {
+            'job_id': job_id,
+            'status': 'processing',
+            'topic': topic,
+            'tier': tier,
+            'count': count,
+            'progress': 10,
+            'started_at': datetime.utcnow().isoformat()
+        }
+        
+        session_service.update_session_questions(
+            session_id=session_id,
+            questions=[],
+            metadata=job_metadata
+        )
+        
+        # Generate questions
+        questions = generate_questions_with_bedrock(
+            topic=topic,
+            tier=tier,
+            count=count,
+            enriched_prompt=enriched_prompt,
+            request_id=request_id
+        )
+        
+        # Generate mark schemes
+        mark_schemes = generate_mark_schemes(questions)
+        
+        # Update job with results
+        job_metadata.update({
+            'status': 'completed',
+            'progress': 100,
+            'completed_at': datetime.utcnow().isoformat(),
+            'question_count': len(questions),
+            'total_marks': sum(q.get('marks', 0) for q in questions)
+        })
+        
+        # Update session with final results
+        session_service.update_session_questions(
+            session_id=session_id,
+            questions=questions,
+            metadata=job_metadata
+        )
+        
+        # Record topic coverage for analytics
+        try:
+            from src.services.topic_coverage_service import TopicCoverageService
+            import os
+            coverage_table = os.environ.get('TOPIC_COVERAGE_TABLE_NAME')
+            if coverage_table:
+                coverage_service = TopicCoverageService(region=AWS_REGION, table_name=coverage_table)
+                coverage_service.record_topic_coverage(
+                    user_id=user_id,
+                    topic=topic,
+                    subtopic=topic.lower(),
+                    question_count=len(questions),
+                    session_id=session_id,
+                    request_id=request_id
+                )
+                logger.info(f"Topic coverage recorded for {topic}")
+        except Exception as e:
+            logger.warning(f"Failed to record topic coverage (non-critical): {str(e)}")
+        
+        logger.info(f"Async generation completed - Job ID: {job_id}, Questions: {len(questions)}")
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'success': True,
+                'job_id': job_id,
+                'session_id': session_id,
+                'questions_generated': len(questions)
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Async generation failed - Job ID: {job_id}, Error: {str(e)}")
+        
+        try:
+            # Update job with error status
+            job_metadata = {
+                'job_id': job_id,
+                'status': 'failed',
+                'error': str(e),
+                'completed_at': datetime.utcnow().isoformat()
+            }
+            
+            # Generate fallback questions
+            fallback_questions = generate_fallback_questions(topic, tier, min(count, 10), request_id)
+            
+            session_service.update_session_questions(
+                session_id=session_id,
+                questions=fallback_questions,
+                metadata=job_metadata
+            )
+            
+            logger.info(f"Fallback questions generated for failed job {job_id}")
+            
+        except Exception as update_error:
+            logger.error(f"Failed to update job status: {str(update_error)}")
+        
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'success': False,
+                'job_id': job_id,
+                'error': str(e)
+            })
+        }
+
+
+def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prompt: str, user_id: str, request_id: str) -> dict:
+    """
+    Handle asynchronous question generation using SQS.
+    Sends message to SQS queue and returns immediately with job ID.
+    """
+    import boto3
+    from datetime import datetime, timedelta
+    
+    logger.info(f"Starting async generation via SQS for {count} questions - Request ID: {request_id}")
+    
+    # Create a job ID for tracking
+    job_id = f"job_{request_id}"
+    
+    try:
+        from src.services.session_service import SessionService
+        session_service = SessionService(region=AWS_REGION)
+        
+        # Create initial job record with pending status
+        job_metadata = {
+            'job_id': job_id,
+            'status': 'pending',
+            'topic': topic,
+            'tier': tier,
+            'count': count,
+            'progress': 0,
+            'created_at': datetime.utcnow().isoformat(),
+            'estimated_completion': (datetime.utcnow() + timedelta(minutes=3)).isoformat()
+        }
+        
+        # Create session to track job
+        session_id = session_service.create_session(
+            user_id=user_id,
+            query=f"Async generation: {count} {tier} {topic} questions",
+            generated_questions=[],  # Empty initially
+            metadata=job_metadata,
+            request_id=request_id
+        )
+        
+        # Send message to SQS queue
+        sqs_client = boto3.client('sqs', region_name=AWS_REGION)
+        queue_url = os.environ.get('ASYNC_QUEUE_URL')
+        
+        if not queue_url:
+            raise ValueError("ASYNC_QUEUE_URL environment variable not set")
+        
+        message_body = {
+            'job_id': job_id,
+            'session_id': session_id,
+            'topic': topic,
+            'tier': tier,
+            'count': count,
+            'enriched_prompt': enriched_prompt,
+            'user_id': user_id,
+            'request_id': request_id
+        }
+        
+        response = sqs_client.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(message_body),
+            MessageAttributes={
+                'job_id': {
+                    'StringValue': job_id,
+                    'DataType': 'String'
+                },
+                'user_id': {
+                    'StringValue': user_id,
+                    'DataType': 'String'
+                }
+            }
+        )
+        
+        logger.info(f"Message sent to SQS - Job ID: {job_id}, Message ID: {response['MessageId']}")
+        
+        # Return immediately with job information
+        response_body = {
+            'success': True,
+            'async': True,
+            'job_id': job_id,
+            'session_id': session_id,
+            'status': 'pending',
+            'estimated_completion_minutes': 3,
+            'progress': 0,
+            'message': f'Large request ({count} questions) is being processed asynchronously. Use the session_id to check status.',
+            'polling_info': {
+                'check_status_endpoint': f'/user/sessions/{session_id}',
+                'recommended_poll_interval_seconds': 5,
+                'max_wait_time_minutes': 5
+            },
+            'request_id': request_id,
+            'generated_at': datetime.utcnow().isoformat()
+        }
+        
+        logger.info(f"Async job created via SQS - Job ID: {job_id}, Session ID: {session_id}")
+        
+        return {
+            'statusCode': 202,  # Accepted - processing asynchronously
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_response_headers(methods='POST,OPTIONS')
+            },
+            'body': json.dumps(response_body)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create async job via SQS: {str(e)}")
+        return create_error_response(500, f"Failed to start async processing: {str(e)}", request_id)
+
+
+def handle_async_generation(topic: str, tier: str, count: int, enriched_prompt: str, user_id: str, request_id: str) -> dict:
+    """
+    Handle asynchronous question generation for large requests.
+    Returns immediately with a job ID, processes in background using Lambda async invoke.
+    """
+    import boto3
+    from datetime import datetime, timedelta
+    
+    logger.info(f"Starting async generation for {count} questions - Request ID: {request_id}")
+    
+    # Create a job ID for tracking
+    job_id = f"job_{request_id}"
+    
+    # Store initial job status in DynamoDB for tracking
+    try:
+        from src.services.session_service import SessionService
+        session_service = SessionService(region=AWS_REGION)
+        
+        # Create initial job record with processing status
+        job_metadata = {
+            'job_id': job_id,
+            'status': 'processing',
+            'topic': topic,
+            'tier': tier,
+            'count': count,
+            'progress': 0,
+            'created_at': datetime.utcnow().isoformat(),
+            'estimated_completion': (datetime.utcnow() + timedelta(minutes=2)).isoformat()
+        }
+        
+        # Store job status (we'll use sessions table for simplicity)
+        session_id = session_service.create_session(
+            user_id=user_id,
+            query=f"Async generation: {count} {tier} {topic} questions",
+            generated_questions=[],  # Empty initially
+            metadata=job_metadata,
+            request_id=request_id
+        )
+        
+        # Invoke Lambda asynchronously to process the request
+        try:
+            lambda_client = boto3.client('lambda', region_name=AWS_REGION)
+            
+            # Prepare payload for async processing
+            async_payload = {
+                'async_processing': True,
+                'job_id': job_id,
+                'session_id': session_id,
+                'topic': topic,
+                'tier': tier,
+                'count': count,
+                'enriched_prompt': enriched_prompt,
+                'user_id': user_id,
+                'request_id': request_id
+            }
+            
+            # Get current Lambda function name from context
+            function_name = f"gcse-generate-lambda-{os.environ.get('ENVIRONMENT', 'dev')}"
+            
+            # Invoke Lambda asynchronously
+            lambda_client.invoke(
+                FunctionName=function_name,
+                InvocationType='Event',  # Async invocation
+                Payload=json.dumps(async_payload)
+            )
+            
+            logger.info(f"Async Lambda invoked for job {job_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to invoke async Lambda: {str(e)}")
+            
+            # Update job with error status
+            job_metadata.update({
+                'status': 'failed',
+                'error': f'Failed to start async processing: {str(e)}',
+                'completed_at': datetime.utcnow().isoformat()
+            })
+            
+            session_service.update_session_questions(
+                session_id=session_id,
+                questions=[],
+                metadata=job_metadata
+            )
+        
+        # Small delay to ensure DynamoDB write completes (eventual consistency)
+        time.sleep(0.5)
+        
+        # Verify session was created
+        try:
+            verify_session = session_service.get_session_details(session_id, user_id)
+            if not verify_session:
+                logger.error(f"Session {session_id} not found immediately after creation")
+        except Exception as e:
+            logger.warning(f"Could not verify session creation: {str(e)}")
+        
+        # Return immediately with job information
+        response_body = {
+            'success': True,
+            'async': True,
+            'job_id': job_id,
+            'session_id': session_id,
+            'status': 'processing',
+            'estimated_completion_minutes': 2,
+            'progress': 0,
+            'message': f'Large request ({count} questions) is being processed asynchronously. Use the session_id to check status.',
+            'polling_info': {
+                'check_status_endpoint': f'/user/sessions/{session_id}',
+                'recommended_poll_interval_seconds': 10,
+                'max_wait_time_minutes': 3
+            },
+            'request_id': request_id,
+            'generated_at': datetime.utcnow().isoformat()
+        }
+        
+        logger.info(f"Async job created - Job ID: {job_id}, Session ID: {session_id}")
+        
+        return {
+            'statusCode': 202,  # Accepted - processing asynchronously
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_response_headers(methods='POST,OPTIONS')
+            },
+            'body': json.dumps(response_body)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create async job: {str(e)}")
+        return create_error_response(500, f"Failed to start async processing: {str(e)}", request_id)
+
+
+def generate_questions_with_bedrock(topic: str, tier: str, count: int, enriched_prompt: str, request_id: str) -> list:
+    """Generate questions using Bedrock Claude with timeout handling."""
+    
+    # Import timeout handling
+    from src.utils.timeout_handler import (
+        create_lambda_timeout_handler, 
+        handle_question_generation_timeout,
+        monitor_operation_progress
+    )
+    
+    # Create timeout handler with buffer for Lambda context
+    import time
+    start_time = time.time()
+    
+    # For large question counts, use batch processing
+    if count > 10:
+        return generate_questions_in_batches(topic, tier, count, enriched_prompt, request_id)
+    
+    # Build the prompt for question generation with answers and randomization
+    import random
+    import hashlib
+    
+    # Create a unique seed based on request_id and timestamp for variety
+    seed_string = f"{request_id}_{time.time()}_{random.random()}"
+    seed_hash = hashlib.md5(seed_string.encode()).hexdigest()[:8]
+    
+    # Add Edexcel specification context
+    edexcel_spec_context = f"""
+OFFICIAL EDEXCEL GCSE SPECIFICATION REQUIREMENTS:
+You MUST generate questions that align with the official Edexcel GCSE Mathematics specification.
+
+For {tier} tier, focus on these specification codes:
+- Number: N1-N16 (ordering, operations, place value, fractions, decimals, percentages, measures)
+- Algebra: A1-A25 (notation, manipulation, graphs, equations, sequences)
+- Ratio: R1-R16 (units, scale, proportion, percentages, compound interest)
+- Geometry: G1-G25 (properties, constructions, mensuration, vectors)
+- Probability: P1-P9 (experiments, outcomes, combined events)
+- Statistics: S1-S6 (data analysis, graphs, distributions)
+
+CRITICAL: Each question MUST be UNIQUE and DIFFERENT from any previous questions.
+Use varied contexts, different numbers, alternative problem structures, and diverse scenarios.
+"""
+
+    prompt = f"""Generate {count} COMPLETELY NEW AND UNIQUE GCSE Mathematics exam questions for {tier} tier on the topic of {topic}.
+
+UNIQUENESS REQUIREMENT (CRITICAL):
+- Each question MUST be different from standard textbook examples
+- Use VARIED numerical values (avoid common numbers like 2, 3, 5, 10)
+- Create DIVERSE real-world contexts (shopping, sports, travel, technology, etc.)
+- Apply DIFFERENT problem-solving approaches for each question
+- Randomization seed: {seed_hash}
+
+{edexcel_spec_context}
 
 {enriched_prompt if enriched_prompt else ''}
 
+QUESTION GENERATION RULES:
+1. Use realistic, engaging contexts that students can relate to
+2. Vary the complexity and structure of each question
+3. Include different types of problems (calculation, reasoning, problem-solving)
+4. Use diverse numerical values (decimals, fractions, mixed numbers, etc.)
+5. Create questions that test understanding, not just memorization
+
 For each question, provide:
-1. The question text (clear, exam-style wording)
+1. The question text (clear, exam-style wording with unique context)
 2. The number of marks (typically 2-6 marks)
-3. A difficulty score from 1-10
+3. A difficulty score from 1-10 ({tier} tier: {'1-5' if tier == 'Foundation' else '6-10'})
 4. The correct answer with full working/solution
 
 Return the questions as a JSON array with this structure:
 [
   {{
-    "question_text": "The question text here",
+    "question_text": "The question text here with unique context",
     "marks": 4,
     "difficulty_score": 5,
     "answer": "Step-by-step solution with final answer"
@@ -180,8 +629,8 @@ Return the questions as a JSON array with this structure:
 Only return the JSON array, no other text."""
 
     try:
-        # Call Bedrock to generate questions
-        response = bedrock_service.call_bedrock_with_retry(prompt, request_id)
+        # Call Bedrock to generate questions with higher temperature for variety
+        response = bedrock_service.call_bedrock_with_retry(prompt, request_id, temperature=0.7)
         
         # Parse the response
         questions = parse_bedrock_response(response, topic, tier, request_id)
@@ -197,6 +646,192 @@ Only return the JSON array, no other text."""
     except Exception as e:
         logger.error(f"Bedrock question generation failed: {str(e)}")
         raise
+
+
+def generate_questions_in_batches(topic: str, tier: str, count: int, enriched_prompt: str, request_id: str) -> list:
+    """Generate questions in batches to handle large requests and avoid timeouts."""
+    
+    from src.utils.timeout_handler import (
+        TimeoutHandler, TimeoutConfig, TimeoutStrategy,
+        monitor_operation_progress
+    )
+    import time
+    
+    # Configure timeout handler for batch processing
+    config = TimeoutConfig(
+        total_timeout_seconds=280,  # Leave 20 seconds buffer for Lambda
+        strategy=TimeoutStrategy.PARTIAL_RESULTS,
+        warning_threshold_percent=0.7,
+        critical_threshold_percent=0.85
+    )
+    
+    timeout_handler = TimeoutHandler(config)
+    
+    # Determine batch size based on count
+    if count <= 15:
+        batch_size = 5
+    elif count <= 30:
+        batch_size = 6
+    else:
+        batch_size = 8
+    
+    all_questions = []
+    batches = [(i, min(i + batch_size, count)) for i in range(0, count, batch_size)]
+    
+    logger.info(f"Processing {count} questions in {len(batches)} batches of size {batch_size}")
+    
+    # Progress monitor
+    progress_monitor = monitor_operation_progress(
+        "batch_question_generation", 
+        len(batches), 
+        timeout_handler
+    )
+    
+    for batch_idx, (start_idx, end_idx) in enumerate(batches):
+        batch_count = end_idx - start_idx
+        
+        # Check timeout before processing batch
+        if timeout_handler.is_timeout_approaching(buffer_seconds=30):
+            logger.warning(f"Timeout approaching, stopping at batch {batch_idx + 1}/{len(batches)}")
+            break
+        
+        try:
+            logger.info(f"Processing batch {batch_idx + 1}/{len(batches)}: questions {start_idx + 1}-{end_idx}")
+            
+            # Generate batch with modified prompt for variety and uniqueness
+            batch_prompt = f"""{enriched_prompt}
+
+BATCH {batch_idx + 1}/{len(batches)} - Questions {start_idx + 1} to {end_idx}
+CRITICAL: Generate COMPLETELY DIFFERENT questions from previous batches.
+- Use NEW numerical values
+- Create NEW real-world contexts  
+- Apply DIFFERENT problem-solving approaches
+- Ensure NO repetition of question structures"""
+            
+            batch_questions = generate_single_batch(
+                topic, tier, batch_count, batch_prompt, 
+                f"{request_id}_batch_{batch_idx}", start_idx
+            )
+            
+            all_questions.extend(batch_questions)
+            
+            # Update progress
+            can_continue = progress_monitor(
+                batch_idx + 1, 
+                partial_results=all_questions,
+                can_return_partial=True
+            )
+            
+            if not can_continue:
+                logger.warning(f"Timeout detected, returning partial results: {len(all_questions)} questions")
+                break
+                
+            # Small delay between batches to avoid rate limiting
+            time.sleep(0.5)
+            
+        except Exception as e:
+            logger.error(f"Error in batch {batch_idx + 1}: {str(e)}")
+            # Continue with next batch rather than failing completely
+            continue
+    
+    # If we don't have enough questions, fill with fallbacks
+    if len(all_questions) < count:
+        remaining = count - len(all_questions)
+        logger.info(f"Adding {remaining} fallback questions to reach target count")
+        
+        fallback_questions = generate_fallback_questions(
+            topic, tier, remaining, request_id, start_index=len(all_questions)
+        )
+        all_questions.extend(fallback_questions)
+    
+    logger.info(f"Batch processing completed: {len(all_questions)} questions generated")
+    return all_questions[:count]
+
+
+def generate_single_batch(topic: str, tier: str, count: int, enriched_prompt: str, batch_request_id: str, start_index: int) -> list:
+    """Generate a single batch of questions with randomization and Edexcel spec alignment."""
+    
+    import random
+    import hashlib
+    import time
+    
+    # Create unique seed for this batch
+    seed_string = f"{batch_request_id}_{time.time()}_{random.random()}"
+    seed_hash = hashlib.md5(seed_string.encode()).hexdigest()[:8]
+    
+    # Build batch-specific prompt with variety instructions and Edexcel spec
+    variety_instructions = ""
+    if start_index > 0:
+        variety_instructions = f"""
+CRITICAL UNIQUENESS REQUIREMENT:
+This is batch {start_index // count + 1}, starting at question {start_index + 1}.
+You MUST generate questions that are COMPLETELY DIFFERENT from previous batches:
+- Use DIFFERENT numerical values (avoid repeating numbers)
+- Create NEW real-world contexts (shopping, sports, technology, travel, etc.)
+- Apply ALTERNATIVE mathematical approaches
+- Vary problem structures and question formats
+- NO repetition of question patterns
+"""
+    
+    edexcel_context = f"""
+EDEXCEL SPECIFICATION ALIGNMENT:
+Generate questions aligned with official Edexcel GCSE Mathematics specification codes.
+For {tier} tier {topic}, ensure questions test the appropriate specification requirements.
+Use exam-style language and realistic mark allocations.
+"""
+    
+    prompt = f"""Generate {count} COMPLETELY NEW AND UNIQUE GCSE Mathematics exam questions for {tier} tier on the topic of {topic}.
+
+Randomization seed: {seed_hash}
+
+{edexcel_context}
+
+{enriched_prompt if enriched_prompt else ''}
+
+{variety_instructions}
+
+DIVERSITY REQUIREMENTS:
+- Use varied numerical values (not just 2, 3, 5, 10)
+- Create engaging real-world contexts
+- Mix calculation, reasoning, and problem-solving questions
+- Vary difficulty within the {tier} tier range
+- Ensure each question is structurally different
+
+For each question, provide:
+1. The question text (clear, exam-style wording with unique context)
+2. The number of marks (typically 2-6 marks)  
+3. A difficulty score from 1-10 ({tier} tier: {'1-5' if tier == 'Foundation' else '6-10'})
+4. The correct answer with full working/solution
+
+Return the questions as a JSON array with this structure:
+[
+  {{
+    "question_text": "The question text here",
+    "marks": 4,
+    "difficulty_score": 5,
+    "answer": "Step-by-step solution with final answer"
+  }}
+]
+
+Only return the JSON array, no other text."""
+
+    try:
+        # Call Bedrock for this batch with higher temperature for variety
+        response = bedrock_service.call_bedrock_with_retry(prompt, batch_request_id, temperature=0.7)
+        
+        # Parse the response
+        questions = parse_bedrock_response(response, topic, tier, batch_request_id)
+        
+        # Adjust question IDs to be unique across batches
+        for i, question in enumerate(questions):
+            question['id'] = f'q_{batch_request_id}_{start_index + i}'
+        
+        return questions
+        
+    except Exception as e:
+        logger.error(f"Batch generation failed for {batch_request_id}: {str(e)}")
+        # Return fallback questions for this batch
+        return generate_fallback_questions(topic, tier, count, batch_request_id, start_index)
 
 
 def parse_bedrock_response(response: str, topic: str, tier: str, request_id: str) -> list:

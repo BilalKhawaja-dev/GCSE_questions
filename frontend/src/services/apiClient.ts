@@ -29,7 +29,7 @@ class ApiClient {
 
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 65000, // 65 seconds to account for Lambda timeouts
+      timeout: 120000, // 2 minutes timeout
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': this.apiKey,
@@ -285,30 +285,113 @@ class ApiClient {
         session_token: this.authState.sessionToken
       };
       
+      // Use regular API Gateway endpoint (Function URL has CORS issues)
       const response = await this.client.post<QuestionResponse>('/generate', authenticatedRequest);
+      
+      // Check if this is an async response
+      if (response.data.async) {
+        // For async responses, poll for completion
+        return this.pollAsyncGeneration(response.data);
+      }
+      
       return response.data;
     } catch (error) {
       throw error;
     }
   }
 
-  // Combined method for the full workflow
+  private async pollAsyncGeneration(asyncResponse: any): Promise<QuestionResponse> {
+    const { job_id, session_id, polling_info } = asyncResponse;
+    const maxWaitTime = (polling_info?.max_wait_time_minutes || 5) * 60 * 1000; // Convert to ms
+    const pollInterval = (polling_info?.recommended_poll_interval_seconds || 5) * 1000; // Convert to ms
+    const startTime = Date.now();
+    
+    console.log(`Polling for async generation completion. Job ID: ${job_id}, Session ID: ${session_id}`);
+    
+    while (Date.now() - startTime < maxWaitTime) {
+      try {
+        // Check session status
+        const sessionDetails = await this.getSessionDetails(session_id);
+        
+        const status = sessionDetails.metadata?.status;
+        const progress = sessionDetails.metadata?.progress || 0;
+        
+        console.log(`Job ${job_id} status: ${status} (${progress}%)`);
+        
+        if (status === 'completed') {
+          // Convert session details to QuestionResponse format
+          return {
+            success: true,
+            questions: sessionDetails.generated_questions || [],
+            mark_scheme: [], // Will be generated from questions
+            session_id: session_id,
+            request_id: sessionDetails.metadata?.request_id || job_id,
+            generated_at: sessionDetails.metadata?.completed_at || new Date().toISOString(),
+            metadata: {
+              total_marks: sessionDetails.metadata?.total_marks || 0,
+              model_version: 'claude-3-sonnet',
+              generated_at: sessionDetails.metadata?.completed_at || new Date().toISOString(),
+              async_generation: true,
+              job_id: job_id,
+              generation_time: sessionDetails.metadata?.generation_time
+            }
+          };
+        } else if (status === 'failed') {
+          throw new Error(`Async generation failed: ${sessionDetails.metadata?.error || 'Unknown error'}`);
+        }
+        
+        // Still processing, wait and try again
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+      } catch (error) {
+        console.error('Error polling async generation:', error);
+        // Continue polling unless it's a critical error
+        if (error instanceof Error && error.message?.includes('Authentication required')) {
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      }
+    }
+    
+    // Timeout reached
+    throw new Error(`Async generation timed out after ${maxWaitTime / 1000} seconds. Job ID: ${job_id}. Check session ${session_id} for status.`);
+  }
+
+  // Combined method for the full workflow - SIMPLIFIED: Skip InterpretLambda
   async generateQuestionsFromQuery(query: string): Promise<QuestionResponse> {
     if (!this.isAuthenticated()) {
       throw new Error('Authentication required');
     }
     
     try {
-      // Step 1: Interpret the query
-      const { intent, enriched_prompt } = await this.interpretQuery({ query });
+      // Parse the query on the client side to extract count
+      const countMatch = query.match(/(\d+)/);
+      const count = countMatch ? parseInt(countMatch[1]) : 5;
       
-      // Step 2: Generate questions based on the intent
+      // Determine tier from query
+      let tier: 'Foundation' | 'Higher' = 'Foundation';
+      if (query.toLowerCase().includes('higher')) {
+        tier = 'Higher';
+      }
+      
+      // Extract topic - use first recognizable topic or default to the query
+      const topics = ['algebra', 'number', 'geometry', 'statistics', 'probability', 'ratio'];
+      let topic = 'Algebra'; // default
+      
+      for (const t of topics) {
+        if (query.toLowerCase().includes(t)) {
+          topic = t.charAt(0).toUpperCase() + t.slice(1);
+          break;
+        }
+      }
+      
+      // Generate questions directly without InterpretLambda
       const questions = await this.generateQuestions({
-        topic: intent.topic,
-        tier: intent.tier,
-        count: intent.count,
-        specification_version: intent.specification_version,
-        enriched_prompt: enriched_prompt,
+        topic,
+        tier,
+        count,
+        specification_version: 'latest',
+        enriched_prompt: query, // Pass full query as enriched prompt
       });
       
       return questions;

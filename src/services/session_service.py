@@ -137,6 +137,88 @@ class SessionService:
             )
             raise Exception(f"Failed to create session: {str(e)}")
     
+    def update_session_questions(
+        self,
+        session_id: str,
+        questions: List[Dict[str, Any]],
+        metadata: Dict[str, Any]
+    ) -> bool:
+        """
+        Update an existing session with new questions and metadata.
+        
+        Args:
+            session_id: Session identifier to update
+            questions: List of generated question objects
+            metadata: Updated session metadata
+            
+        Returns:
+            bool: True if update successful, False otherwise
+            
+        Raises:
+            Exception: If session update fails
+        """
+        try:
+            # Convert floats to Decimal for DynamoDB
+            processed_metadata = {}
+            for key, value in metadata.items():
+                if isinstance(value, float):
+                    processed_metadata[key] = Decimal(str(value))
+                else:
+                    processed_metadata[key] = value
+            
+            # First, query to find the session item with the correct sort key
+            query_response = self.sessions_table.query(
+                KeyConditionExpression='pk = :pk',
+                ExpressionAttributeValues={
+                    ':pk': f'SESSION#{session_id}'
+                },
+                Limit=1
+            )
+            
+            if not query_response.get('Items'):
+                logger.warning(f"Session not found for update: {session_id}")
+                return False
+            
+            session_item = query_response['Items'][0]
+            sort_key = session_item['sk']
+            
+            # Update the session with new questions and metadata
+            response = self.sessions_table.update_item(
+                Key={
+                    'pk': f'SESSION#{session_id}',
+                    'sk': sort_key
+                },
+                UpdateExpression='SET generated_questions = :questions, metadata = :metadata, updated_at = :updated_at',
+                ExpressionAttributeValues={
+                    ':questions': questions,
+                    ':metadata': processed_metadata,
+                    ':updated_at': datetime.utcnow().isoformat()
+                },
+                ReturnValues='UPDATED_NEW'
+            )
+            
+            logger.info(
+                "Session updated successfully",
+                extra={
+                    "session_id": session_id,
+                    "question_count": len(questions),
+                    "status": processed_metadata.get('status', 'unknown')
+                }
+            )
+            
+            return True
+            
+        except ClientError as e:
+            logger.error(
+                "Failed to update session",
+                extra={
+                    "session_id": session_id,
+                    "error": str(e)
+                }
+            )
+            # Don't raise exception, just return False for async operations
+            return False
+    
     def get_user_sessions(
         self,
         user_id: str,
