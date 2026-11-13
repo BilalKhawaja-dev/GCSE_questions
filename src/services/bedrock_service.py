@@ -33,19 +33,93 @@ logger = logging.getLogger(__name__)
 class BedrockService:
     """Service for interacting with AWS Bedrock models with enhanced error handling."""
     
-    def __init__(self, region: str = 'eu-west-2'):
-        """Initialize Bedrock service with proper client configuration and error handling."""
+    def __init__(self, region: str = 'eu-west-2', knowledge_base_id: str = None):
+        """Initialize Bedrock service with KB integration.
+        
+        Args:
+            region: AWS region
+            knowledge_base_id: Optional Bedrock Knowledge Base ID for PDF content
+        """
         self.region = region
         self.client = boto3.client('bedrock-runtime', region_name=region)
         
-        # Get model ID from environment variable (different for each Lambda)
+        # Get model ID from environment variable
         import os
         self.model_id = os.environ.get('BEDROCK_MODEL_ID', 'anthropic.claude-3-haiku-20240307-v1:0')
         
-        # Initialize error handling components
+        # Initialize error handling
         self.error_handler = ErrorHandler()
         self.circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
         self.validation_service = QuestionValidationService()
+        
+        # Initialize Knowledge Base service if ID provided
+        self.kb_service = None
+        kb_enabled = os.environ.get('KNOWLEDGE_BASE_ENABLED', 'false').lower() == 'true'
+        
+        if knowledge_base_id and kb_enabled:
+            try:
+                from src.services.knowledge_base_service import KnowledgeBaseService
+                self.kb_service = KnowledgeBaseService(knowledge_base_id, region)
+                logger.info(f"Knowledge Base enabled: {knowledge_base_id}")
+            except Exception as e:
+                logger.warning(f"KB initialization failed: {str(e)}")
+                self.kb_service = None
+    
+    def enrich_prompt_with_kb(
+        self,
+        base_prompt: str,
+        topic: str,
+        tier: str,
+        request_id: str
+    ) -> str:
+        """Enrich prompt with Knowledge Base content.
+        
+        Args:
+            base_prompt: Original prompt
+            topic: Topic for KB query
+            tier: Tier for KB query
+            request_id: Request ID
+            
+        Returns:
+            Enhanced prompt with KB context
+        """
+        if not self.kb_service:
+            return base_prompt
+        
+        try:
+            # Query KB for relevant Edexcel content
+            retrieved_content = self.kb_service.retrieve_relevant_content(
+                query=f"{topic} {tier} exam questions examples",
+                topic=topic,
+                tier=tier,
+                max_results=5,
+                request_id=request_id
+            )
+            
+            if not retrieved_content:
+                logger.info("No KB content retrieved, using base prompt")
+                return base_prompt
+            
+            # Build enriched context
+            kb_context = self.kb_service.build_enriched_context(
+                retrieved_content,
+                max_length=2000
+            )
+            
+            # Inject KB context into prompt
+            enhanced_prompt = f"""{kb_context}
+
+{base_prompt}
+
+CRITICAL: Use the Edexcel content above as your primary reference.
+Match the exact style, wording, and format shown in those examples."""
+            
+            logger.info(f"Enhanced prompt with {len(retrieved_content)} KB chunks")
+            return enhanced_prompt
+            
+        except Exception as e:
+            logger.warning(f"KB enrichment failed: {str(e)}")
+            return base_prompt  # Graceful fallback
     
     def call_bedrock_with_retry(self, prompt: str, request_id: str, max_tokens: int = 4000, temperature: float = 0.1) -> str:
         """

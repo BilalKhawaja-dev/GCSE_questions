@@ -1,7 +1,7 @@
 """Question data model for generated exam questions."""
 
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict, Any
 
 
 @dataclass
@@ -18,6 +18,18 @@ class Question:
         difficulty_score: Numeric difficulty rating (1-10 scale)
         mathematical_elements: List of mathematical concepts present
         difficulty_indicators: List of difficulty indicators
+        
+        # Verification metadata (for question bank system)
+        verification_status: Verification status ("PENDING", "VERIFIED", "REJECTED", "VERIFICATION_ERROR")
+        verification_timestamp: ISO timestamp of verification
+        verification_confidence: Overall confidence score (0.0-1.0)
+        verification_results: Detailed results from each verification layer
+        embedding: Vector embedding for similarity detection (1024-dim)
+        answer_forms: Canonical forms of answers for validation
+        times_served: Number of times question has been served to users
+        last_served: ISO timestamp of last time served
+        user_feedback_score: Average user feedback score
+        reported_issues: Count of user-reported issues
     """
     id: str
     question_text: str
@@ -28,6 +40,18 @@ class Question:
     subtopic: Optional[str] = None
     mathematical_elements: Optional[List[str]] = None
     difficulty_indicators: Optional[List[str]] = None
+    
+    # Verification metadata
+    verification_status: str = "PENDING"
+    verification_timestamp: Optional[str] = None
+    verification_confidence: Optional[float] = None
+    verification_results: Optional[Dict[str, Any]] = None
+    embedding: Optional[List[float]] = None
+    answer_forms: Optional[Dict[str, Any]] = None
+    times_served: int = 0
+    last_served: Optional[str] = None
+    user_feedback_score: Optional[float] = None
+    reported_issues: int = 0
     
     def __post_init__(self):
         """Validate Question fields after initialization."""
@@ -62,3 +86,13 @@ class Question:
         
         if self.difficulty_indicators is None:
             self.difficulty_indicators = []
+        
+        # Validate verification status
+        valid_statuses = ["PENDING", "VERIFIED", "REJECTED", "VERIFICATION_ERROR"]
+        if self.verification_status not in valid_statuses:
+            raise ValueError(f"Invalid verification_status: {self.verification_status}. Must be one of {valid_statuses}")
+        
+        # Validate verification confidence if provided
+        if self.verification_confidence is not None:
+            if not 0.0 <= self.verification_confidence <= 1.0:
+                raise ValueError(f"Invalid verification_confidence: {self.verification_confidence}. Must be between 0.0 and 1.0")

@@ -1,0 +1,191 @@
+{
+  "total_combinations": 36,
+  "completed": 0,
+  "failed": 0,
+  "total_generated": 0,
+  "total_verified": 0,
+  "target_total": 1800,
+  "completion_percentage": 0.0,
+  "results": [
+    {
+      "combination": "number_foundation_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "number_foundation_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "number_foundation_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "number_higher_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "number_higher_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "number_higher_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "algebra_foundation_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "algebra_foundation_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "algebra_foundation_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "algebra_higher_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "algebra_higher_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "algebra_higher_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "ratio_proportion_foundation_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "ratio_proportion_foundation_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "ratio_proportion_foundation_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "ratio_proportion_higher_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "ratio_proportion_higher_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "ratio_proportion_higher_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "geometry_foundation_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "geometry_foundation_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "geometry_foundation_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "geometry_higher_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "geometry_higher_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "geometry_higher_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "probability_foundation_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "probability_foundation_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "probability_foundation_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "probability_higher_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "probability_higher_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "probability_higher_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "statistics_foundation_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "statistics_foundation_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "statistics_foundation_P3",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "statistics_higher_P1",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "statistics_higher_P2",
+      "generated": 75,
+      "verified": 0
+    },
+    {
+      "combination": "statistics_higher_P3",
+      "generated": 75,
+      "verified": 0
+    }
+  ]
+}

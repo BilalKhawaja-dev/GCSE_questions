@@ -62,7 +62,7 @@ def get_production_requirements() -> List[str]:
             # Check for section markers in comments
             if '# Testing dependencies' in line or '# Development dependencies' in line:
                 in_production_section = False
-            elif '# Core dependencies' in line:
+            elif '# Core dependencies' in line or '# Mathematical verification' in line:
                 in_production_section = True
             continue
         
@@ -115,7 +115,6 @@ def create_lambda_package() -> Path:
                 sys.executable, "-m", "pip", "install",
                 "-r", str(temp_requirements),
                 "-t", str(package_dir),
-                "--no-deps",  # Don't install sub-dependencies to avoid conflicts
                 "--upgrade"
             ])
             

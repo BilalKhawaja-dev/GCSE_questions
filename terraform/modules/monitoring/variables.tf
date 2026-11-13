@@ -1,5 +1,16 @@
 # Monitoring module variables
 
+variable "project_name" {
+  description = "Project name"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "eu-west-2"
+}
+
 variable "environment" {
   description = "Environment name"
   type        = string
@@ -94,13 +105,13 @@ variable "alert_email" {
 variable "cost_threshold_daily" {
   description = "Daily cost threshold in USD"
   type        = number
-  default     = 1.60  # $1.60/day = ~$48/month (20% buffer over $40 target)
+  default     = 1.60 # $1.60/day = ~$48/month (20% buffer over $40 target)
 }
 
 variable "cost_threshold_monthly" {
   description = "Monthly cost threshold in USD"
   type        = number
-  default     = 48.0  # $48/month (20% buffer over $40 target)
+  default     = 48.0 # $48/month (20% buffer over $40 target)
 }
 # DynamoDB Auto-Scaling Variables
 variable "enable_dynamodb_autoscaling" {

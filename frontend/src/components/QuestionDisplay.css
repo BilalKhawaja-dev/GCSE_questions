@@ -7,14 +7,19 @@
 .question-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 2px solid var(--border-color, #e2e8f0);
+  gap: 1rem;
+}
+
+.header-left {
+  flex: 1;
 }
 
 .question-header h2 {
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   color: var(--text-primary, #2d3748);
   font-size: 1.75rem;
   font-weight: 700;
@@ -24,6 +29,44 @@
   display: flex;
   gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.copy-all-button {
+  background-color: var(--button-secondary, #48bb78);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(72, 187, 120, 0.2);
+}
+
+.copy-all-button:hover {
+  background-color: #38a169;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+}
+
+.copy-all-button:active {
+  transform: translateY(0);
+}
+
+.copy-all-button.success {
+  background-color: #38a169;
+  animation: successPulse 0.5s ease;
+}
+
+@keyframes successPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .total-marks,
@@ -663,5 +706,165 @@
   .rose-decoration-left .rose-icon,
   .rose-decoration-right .rose-icon {
     font-size: 1.1rem;
+  }
+}
+
+/* Report Issue Styles */
+.report-issue-container {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.report-issue-button {
+  background-color: #f56565;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-issue-button:hover {
+  background-color: #e53e3e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
+}
+
+.report-submitted-message {
+  background-color: #48bb78;
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  animation: slideIn 0.3s ease;
+}
+
+.report-issue-form {
+  background-color: var(--card-bg, #ffffff);
+  border: 2px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  animation: slideIn 0.3s ease;
+}
+
+.report-issue-form h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary, #2d3748);
+  font-size: 1.25rem;
+}
+
+.report-issue-form p {
+  margin: 0 0 1.5rem 0;
+  color: var(--text-secondary, #718096);
+  font-size: 0.95rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary, #2d3748);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.issue-type-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background-color: var(--input-bg, #ffffff);
+  color: var(--text-primary, #2d3748);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.issue-type-select:focus {
+  outline: none;
+  border-color: var(--primary-color, #4299e1);
+}
+
+.issue-description-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background-color: var(--input-bg, #ffffff);
+  color: var(--text-primary, #2d3748);
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.issue-description-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color, #4299e1);
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.submit-issue-button {
+  flex: 1;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submit-issue-button:hover {
+  background-color: #3182ce;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+}
+
+.cancel-issue-button {
+  flex: 1;
+  background-color: transparent;
+  color: var(--text-secondary, #718096);
+  border: 2px solid var(--border-color, #e2e8f0);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-issue-button:hover {
+  background-color: var(--hover-bg, #f7fafc);
+  border-color: var(--text-secondary, #718096);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

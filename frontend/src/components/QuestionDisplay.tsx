@@ -11,6 +11,35 @@ interface QuestionDisplayProps {
 
 const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData, theme = 'default' }) => {
   const [showAllAnswers, setShowAllAnswers] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [showReportIssue, setShowReportIssue] = useState(false);
+  const [issueType, setIssueType] = useState('');
+  const [issueDescription, setIssueDescription] = useState('');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+
+  const copyAllToClipboard = async (questions: Question[]) => {
+    try {
+      // Format all questions as plain text
+      const text = questions.map((q, index) => {
+        const questionNum = index + 1;
+        const markScheme = getMarkSchemeForQuestion(q);
+        
+        return `Question ${questionNum} (${q.marks} marks)
+${q.question_text}
+
+Answer:
+${markScheme.marking_criteria}
+
+---`;
+      }).join('\n\n');
+      
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     try {
@@ -50,6 +79,42 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData, theme =
 
   // Get session_id for feedback (use first question's id as fallback)
   const sessionId = (questionData as any).session_id || questionData.questions?.[0]?.id || 'unknown';
+
+  const handleReportIssue = async () => {
+    if (!issueType || !issueDescription.trim()) {
+      alert('Please select an issue type and provide a description');
+      return;
+    }
+
+    try {
+      // Submit issue report through feedback endpoint
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('session_token')}`
+        },
+        body: JSON.stringify({
+          question_id: sessionId,
+          helpful: false,
+          issue_reported: true,
+          issue_type: issueType,
+          issue_description: issueDescription
+        })
+      });
+
+      if (response.ok) {
+        setReportSubmitted(true);
+        setShowReportIssue(false);
+        setTimeout(() => setReportSubmitted(false), 3000);
+      } else {
+        alert('Failed to submit issue report. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting issue report:', error);
+      alert('Failed to submit issue report. Please try again.');
+    }
+  };
 
   // Handle async responses that don't have questions yet
   if ((questionData as any).async && !questionData.questions?.length) {
@@ -101,25 +166,34 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData, theme =
         <>
           <div className="rose-decoration-left">
             <span className="rose-icon">🌹</span>
-            <span className="rose-icon">🌸</span>
-            <span className="rose-icon">🌺</span>
-            <span className="rose-icon">🌷</span>
+            <span className="rose-icon">🌹</span>
+            <span className="rose-icon">🌹</span>
+            <span className="rose-icon">🌹</span>
           </div>
           <div className="rose-decoration-right">
             <span className="rose-icon">🌹</span>
-            <span className="rose-icon">🌸</span>
-            <span className="rose-icon">🌺</span>
-            <span className="rose-icon">🌷</span>
+            <span className="rose-icon">🌹</span>
+            <span className="rose-icon">🌹</span>
+            <span className="rose-icon">🌹</span>
           </div>
         </>
       )}
       
       <div className="question-header">
-        <h2>Generated Questions</h2>
-        <div className="metadata">
-          <span className="total-marks">Total Marks: {totalMarks}</span>
-          <span className="question-count">{questionData.questions.length} Questions</span>
+        <div className="header-left">
+          <h2>Generated Questions</h2>
+          <div className="metadata">
+            <span className="total-marks">Total Marks: {totalMarks}</span>
+            <span className="question-count">{questionData.questions.length} Questions</span>
+          </div>
         </div>
+        <button
+          className={`copy-all-button ${copySuccess ? 'success' : ''}`}
+          onClick={() => copyAllToClipboard(questionData.questions || [])}
+          title="Copy all questions to clipboard"
+        >
+          {copySuccess ? '✅ Copied!' : '📋 Copy All'}
+        </button>
       </div>
 
       <div className="questions-list">
@@ -158,6 +232,81 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({ questionData, theme =
             console.log('Feedback submitted for session', sessionId, feedback);
           }}
         />
+        
+        {/* Report Issue Button */}
+        <div className="report-issue-container">
+          {!showReportIssue && !reportSubmitted && (
+            <button
+              className="report-issue-button"
+              onClick={() => setShowReportIssue(true)}
+              title="Report an issue with this question"
+            >
+              🚩 Report Issue
+            </button>
+          )}
+          
+          {reportSubmitted && (
+            <div className="report-submitted-message">
+              ✅ Thank you! Your issue report has been submitted.
+            </div>
+          )}
+          
+          {showReportIssue && (
+            <div className="report-issue-form">
+              <h3>Report an Issue</h3>
+              <p>Help us improve by reporting problems with this question.</p>
+              
+              <div className="form-group">
+                <label htmlFor="issue-type">Issue Type:</label>
+                <select
+                  id="issue-type"
+                  value={issueType}
+                  onChange={(e) => setIssueType(e.target.value)}
+                  className="issue-type-select"
+                >
+                  <option value="">Select an issue type...</option>
+                  <option value="incorrect_answer">Incorrect Answer</option>
+                  <option value="ambiguous_wording">Ambiguous Wording</option>
+                  <option value="missing_information">Missing Information</option>
+                  <option value="wrong_difficulty">Wrong Difficulty Level</option>
+                  <option value="formatting_error">Formatting Error</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="issue-description">Description:</label>
+                <textarea
+                  id="issue-description"
+                  value={issueDescription}
+                  onChange={(e) => setIssueDescription(e.target.value)}
+                  placeholder="Please describe the issue in detail..."
+                  className="issue-description-textarea"
+                  rows={4}
+                />
+              </div>
+              
+              <div className="form-actions">
+                <button
+                  className="submit-issue-button"
+                  onClick={handleReportIssue}
+                >
+                  Submit Report
+                </button>
+                <button
+                  className="cancel-issue-button"
+                  onClick={() => {
+                    setShowReportIssue(false);
+                    setIssueType('');
+                    setIssueDescription('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="generation-info">

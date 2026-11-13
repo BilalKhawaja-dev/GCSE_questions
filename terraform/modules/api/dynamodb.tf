@@ -20,9 +20,9 @@ resource "aws_kms_alias" "dynamodb_key_alias" {
 
 # Users table for authentication
 resource "aws_dynamodb_table" "users" {
-  name           = "gcse-generator-v2-users-${var.environment}"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "pk"
+  name         = "gcse-generator-v2-users-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
 
   attribute {
     name = "pk"
@@ -36,9 +36,9 @@ resource "aws_dynamodb_table" "users" {
 
   # GSI for email lookup
   global_secondary_index {
-    name               = "EmailIndex"
-    hash_key           = "email"
-    projection_type    = "ALL"
+    name            = "EmailIndex"
+    hash_key        = "email"
+    projection_type = "ALL"
   }
 
   # Enable encryption at rest with customer-managed KMS key
@@ -62,10 +62,10 @@ resource "aws_dynamodb_table" "users" {
 
 # Sessions table for user session management
 resource "aws_dynamodb_table" "sessions" {
-  name           = "gcse-generator-v2-sessions-${var.environment}"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "pk"
-  range_key      = "sk"
+  name         = "gcse-generator-v2-sessions-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
 
   attribute {
     name = "pk"
@@ -84,10 +84,10 @@ resource "aws_dynamodb_table" "sessions" {
 
   # GSI for user session history queries
   global_secondary_index {
-    name               = "UserSessionsIndex"
-    hash_key           = "user_id"
-    range_key          = "sk"
-    projection_type    = "ALL"
+    name            = "UserSessionsIndex"
+    hash_key        = "user_id"
+    range_key       = "sk"
+    projection_type = "ALL"
   }
 
   # TTL configuration for automatic session cleanup (7 days = 604800 seconds)
@@ -117,10 +117,10 @@ resource "aws_dynamodb_table" "sessions" {
 
 # TopicCoverage table for tracking user topic coverage statistics
 resource "aws_dynamodb_table" "topic_coverage" {
-  name           = "gcse-generator-v2-topic-coverage-${var.environment}"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "pk"
-  range_key      = "sk"
+  name         = "gcse-generator-v2-topic-coverage-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
 
   attribute {
     name = "pk"
@@ -144,18 +144,18 @@ resource "aws_dynamodb_table" "topic_coverage" {
 
   # GSI for user coverage statistics queries
   global_secondary_index {
-    name               = "UserCoverageIndex"
-    hash_key           = "user_id"
-    range_key          = "sk"
-    projection_type    = "ALL"
+    name            = "UserCoverageIndex"
+    hash_key        = "user_id"
+    range_key       = "sk"
+    projection_type = "ALL"
   }
 
   # GSI for topic popularity queries
   global_secondary_index {
-    name               = "TopicPopularityIndex"
-    hash_key           = "topic"
-    range_key          = "sk"
-    projection_type    = "ALL"
+    name            = "TopicPopularityIndex"
+    hash_key        = "topic"
+    range_key       = "sk"
+    projection_type = "ALL"
   }
 
   # Enable encryption at rest with customer-managed KMS key
@@ -179,10 +179,10 @@ resource "aws_dynamodb_table" "topic_coverage" {
 
 # QuestionFeedback table for user ratings and feedback
 resource "aws_dynamodb_table" "question_feedback" {
-  name           = "gcse-generator-v2-question-feedback-${var.environment}"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "pk"
-  range_key      = "sk"
+  name         = "gcse-generator-v2-question-feedback-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
 
   attribute {
     name = "pk"
@@ -206,18 +206,18 @@ resource "aws_dynamodb_table" "question_feedback" {
 
   # GSI for aggregating feedback per question
   global_secondary_index {
-    name               = "QuestionFeedbackIndex"
-    hash_key           = "question_id"
-    range_key          = "sk"
-    projection_type    = "ALL"
+    name            = "QuestionFeedbackIndex"
+    hash_key        = "question_id"
+    range_key       = "sk"
+    projection_type = "ALL"
   }
 
   # GSI for user feedback history
   global_secondary_index {
-    name               = "UserFeedbackIndex"
-    hash_key           = "user_id"
-    range_key          = "sk"
-    projection_type    = "ALL"
+    name            = "UserFeedbackIndex"
+    hash_key        = "user_id"
+    range_key       = "sk"
+    projection_type = "ALL"
   }
 
   # Enable encryption at rest with customer-managed KMS key
@@ -241,9 +241,9 @@ resource "aws_dynamodb_table" "question_feedback" {
 
 # QualityScores table for question quality metrics
 resource "aws_dynamodb_table" "quality_scores" {
-  name           = "gcse-generator-v2-quality-scores-${var.environment}"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "pk"
+  name         = "gcse-generator-v2-quality-scores-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
 
   attribute {
     name = "pk"
@@ -257,9 +257,9 @@ resource "aws_dynamodb_table" "quality_scores" {
 
   # GSI for finding high/low quality questions
   global_secondary_index {
-    name               = "QualityScoreIndex"
-    hash_key           = "quality_score"
-    projection_type    = "ALL"
+    name            = "QualityScoreIndex"
+    hash_key        = "quality_score"
+    projection_type = "ALL"
   }
 
   # Enable encryption at rest with customer-managed KMS key

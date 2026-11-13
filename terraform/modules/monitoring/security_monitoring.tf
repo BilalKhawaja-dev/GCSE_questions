@@ -3,8 +3,8 @@
 # CloudWatch Log Group for audit logs
 resource "aws_cloudwatch_log_group" "audit_logs" {
   name              = "/aws/lambda/gcse-audit-logs-${var.environment}"
-  retention_in_days = 2557  # 7 years for compliance (closest valid value)
-  
+  retention_in_days = 2557 # 7 years for compliance (closest valid value)
+
   tags = {
     Name        = "GCSE Audit Logs"
     Environment = var.environment
@@ -15,8 +15,8 @@ resource "aws_cloudwatch_log_group" "audit_logs" {
 # CloudWatch Log Group for security events
 resource "aws_cloudwatch_log_group" "security_events" {
   name              = "/aws/lambda/gcse-security-events-${var.environment}"
-  retention_in_days = 365  # 1 year for security events
-  
+  retention_in_days = 365 # 1 year for security events
+
   tags = {
     Name        = "GCSE Security Events"
     Environment = var.environment
@@ -27,7 +27,7 @@ resource "aws_cloudwatch_log_group" "security_events" {
 # SNS topic for security alerts
 resource "aws_sns_topic" "security_alerts" {
   name = "gcse-security-alerts-${var.environment}"
-  
+
   tags = {
     Name        = "GCSE Security Alerts"
     Environment = var.environment
@@ -38,7 +38,7 @@ resource "aws_sns_topic" "security_alerts" {
 # SNS topic for audit notifications
 resource "aws_sns_topic" "audit_notifications" {
   name = "gcse-audit-notifications-${var.environment}"
-  
+
   tags = {
     Name        = "GCSE Audit Notifications"
     Environment = var.environment
@@ -56,7 +56,7 @@ resource "aws_cloudwatch_log_metric_filter" "auth_failures" {
     name      = "AuthenticationFailures"
     namespace = "GCSE/Security"
     value     = "1"
-    
+
     default_value = 0
   }
 }
@@ -71,7 +71,7 @@ resource "aws_cloudwatch_log_metric_filter" "brute_force_attempts" {
     name      = "BruteForceAttempts"
     namespace = "GCSE/Security"
     value     = "1"
-    
+
     default_value = 0
   }
 }
@@ -86,7 +86,7 @@ resource "aws_cloudwatch_log_metric_filter" "security_violations" {
     name      = "SecurityViolations"
     namespace = "GCSE/Security"
     value     = "1"
-    
+
     default_value = 0
   }
 }
@@ -101,7 +101,7 @@ resource "aws_cloudwatch_log_metric_filter" "rate_limit_exceeded" {
     name      = "RateLimitExceeded"
     namespace = "GCSE/Security"
     value     = "1"
-    
+
     default_value = 0
   }
 }
@@ -116,7 +116,7 @@ resource "aws_cloudwatch_log_metric_filter" "suspicious_activity" {
     name      = "SuspiciousActivity"
     namespace = "GCSE/Security"
     value     = "1"
-    
+
     default_value = 0
   }
 }
@@ -128,15 +128,15 @@ resource "aws_cloudwatch_metric_alarm" "auth_failure_alarm" {
   evaluation_periods  = "2"
   metric_name         = "AuthenticationFailures"
   namespace           = "GCSE/Security"
-  period              = "300"  # 5 minutes
+  period              = "300" # 5 minutes
   statistic           = "Sum"
   threshold           = "10"
   alarm_description   = "This metric monitors authentication failures"
   alarm_actions       = [aws_sns_topic.security_alerts.arn]
   ok_actions          = [aws_sns_topic.security_alerts.arn]
-  
+
   treat_missing_data = "notBreaching"
-  
+
   tags = {
     Name        = "GCSE Auth Failure Alarm"
     Environment = var.environment
@@ -151,14 +151,14 @@ resource "aws_cloudwatch_metric_alarm" "brute_force_alarm" {
   evaluation_periods  = "1"
   metric_name         = "BruteForceAttempts"
   namespace           = "GCSE/Security"
-  period              = "300"  # 5 minutes
+  period              = "300" # 5 minutes
   statistic           = "Sum"
   threshold           = "1"
   alarm_description   = "This metric monitors brute force attempts"
   alarm_actions       = [aws_sns_topic.security_alerts.arn]
-  
+
   treat_missing_data = "notBreaching"
-  
+
   tags = {
     Name        = "GCSE Brute Force Alarm"
     Environment = var.environment
@@ -173,14 +173,14 @@ resource "aws_cloudwatch_metric_alarm" "security_violation_alarm" {
   evaluation_periods  = "1"
   metric_name         = "SecurityViolations"
   namespace           = "GCSE/Security"
-  period              = "300"  # 5 minutes
+  period              = "300" # 5 minutes
   statistic           = "Sum"
   threshold           = "0"
   alarm_description   = "This metric monitors security violations"
   alarm_actions       = [aws_sns_topic.security_alerts.arn]
-  
+
   treat_missing_data = "notBreaching"
-  
+
   tags = {
     Name        = "GCSE Security Violation Alarm"
     Environment = var.environment
@@ -195,14 +195,14 @@ resource "aws_cloudwatch_metric_alarm" "rate_limit_alarm" {
   evaluation_periods  = "2"
   metric_name         = "RateLimitExceeded"
   namespace           = "GCSE/Security"
-  period              = "300"  # 5 minutes
+  period              = "300" # 5 minutes
   statistic           = "Sum"
   threshold           = "50"
   alarm_description   = "This metric monitors rate limit violations"
   alarm_actions       = [aws_sns_topic.security_alerts.arn]
-  
+
   treat_missing_data = "notBreaching"
-  
+
   tags = {
     Name        = "GCSE Rate Limit Alarm"
     Environment = var.environment
@@ -217,14 +217,14 @@ resource "aws_cloudwatch_metric_alarm" "suspicious_activity_alarm" {
   evaluation_periods  = "1"
   metric_name         = "SuspiciousActivity"
   namespace           = "GCSE/Security"
-  period              = "300"  # 5 minutes
+  period              = "300" # 5 minutes
   statistic           = "Sum"
   threshold           = "5"
   alarm_description   = "This metric monitors suspicious activity patterns"
   alarm_actions       = [aws_sns_topic.security_alerts.arn]
-  
+
   treat_missing_data = "notBreaching"
-  
+
   tags = {
     Name        = "GCSE Suspicious Activity Alarm"
     Environment = var.environment
@@ -268,9 +268,9 @@ resource "aws_cloudwatch_dashboard" "security_dashboard" {
         height = 6
 
         properties = {
-          query   = "SOURCE '${aws_cloudwatch_log_group.security_events.name}' | fields @timestamp, @message | filter @message like /security_alert/ | sort @timestamp desc | limit 100"
-          region  = "us-east-1"
-          title   = "Recent Security Alerts"
+          query  = "SOURCE '${aws_cloudwatch_log_group.security_events.name}' | fields @timestamp, @message | filter @message like /security_alert/ | sort @timestamp desc | limit 100"
+          region = "us-east-1"
+          title  = "Recent Security Alerts"
         }
       },
       {
@@ -281,9 +281,9 @@ resource "aws_cloudwatch_dashboard" "security_dashboard" {
         height = 6
 
         properties = {
-          query   = "SOURCE '${aws_cloudwatch_log_group.audit_logs.name}' | fields @timestamp, @message | filter @message like /Authentication failure/ | sort @timestamp desc | limit 50"
-          region  = "us-east-1"
-          title   = "Recent Authentication Failures"
+          query  = "SOURCE '${aws_cloudwatch_log_group.audit_logs.name}' | fields @timestamp, @message | filter @message like /Authentication failure/ | sort @timestamp desc | limit 50"
+          region = "us-east-1"
+          title  = "Recent Authentication Failures"
         }
       }
     ]
@@ -311,19 +311,19 @@ resource "aws_cloudwatch_event_rule" "security_event_rule" {
 
 # Lambda function for automated security response (placeholder)
 resource "aws_lambda_function" "security_response" {
-  filename         = "security_response.zip"
-  function_name    = "gcse-security-response-${var.environment}"
-  role            = aws_iam_role.security_response_role.arn
-  handler         = "index.handler"
-  runtime         = "python3.9"
-  timeout         = 60
+  filename      = "security_response.zip"
+  function_name = "gcse-security-response-${var.environment}"
+  role          = aws_iam_role.security_response_role.arn
+  handler       = "index.handler"
+  runtime       = "python3.9"
+  timeout       = 60
 
   # Placeholder code - would be implemented for automated responses
   source_code_hash = data.archive_file.security_response_zip.output_base64sha256
 
   environment {
     variables = {
-      ENVIRONMENT = var.environment
+      ENVIRONMENT   = var.environment
       SNS_TOPIC_ARN = aws_sns_topic.security_alerts.arn
     }
   }
@@ -339,9 +339,9 @@ resource "aws_lambda_function" "security_response" {
 data "archive_file" "security_response_zip" {
   type        = "zip"
   output_path = "security_response.zip"
-  
+
   source {
-    content = <<EOF
+    content  = <<EOF
 import json
 import boto3
 import logging

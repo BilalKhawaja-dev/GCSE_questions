@@ -357,14 +357,65 @@ class ApiClient {
     throw new Error(`Async generation timed out after ${maxWaitTime / 1000} seconds. Job ID: ${job_id}. Check session ${session_id} for status.`);
   }
 
-  // Combined method for the full workflow - SIMPLIFIED: Skip InterpretLambda
+  // Combined method for the full workflow - OPTIMIZED for parallel generation
   async generateQuestionsFromQuery(query: string): Promise<QuestionResponse> {
     if (!this.isAuthenticated()) {
       throw new Error('Authentication required');
     }
     
     try {
-      // Parse the query on the client side to extract count
+      // Parse multi-topic queries: "10 Algebra, 5 Higher Number" or "10 Foundation fractions questions"
+      const multiTopicPattern = /(\d+)\s+(?:(Foundation|Higher)\s+)?([^,]+?)(?:\s+questions?)?(?:,|$)/gi;
+      const matches = Array.from(query.matchAll(multiTopicPattern));
+      
+      if (matches.length > 1) {
+        // Multiple topics detected - handle each separately and combine
+        const allQuestions: any[] = [];
+        
+        for (const match of matches) {
+          const count = parseInt(match[1]);
+          const tier = (match[2] || 'Foundation') as 'Foundation' | 'Higher';
+          const topicText = match[3].trim();
+          
+          // Clean up topic name
+          const topic = topicText.charAt(0).toUpperCase() + topicText.slice(1).toLowerCase();
+          
+          // Generate questions for this topic
+          const response = await this.generateQuestions({
+            topic,
+            tier,
+            count,
+            specification_version: 'latest',
+            enriched_prompt: `${count} ${tier} ${topic} questions`,
+            force_async: count > 8,
+            parallel_processing: true
+          });
+          
+          // Add questions to combined list
+          if (response.questions) {
+            allQuestions.push(...response.questions);
+          }
+        }
+        
+        // Return combined response
+        return {
+          success: true,
+          questions: allQuestions,
+          mark_scheme: [], // Will be generated from questions
+          session_id: `multi_${Date.now()}`,
+          request_id: `multi_${Date.now()}`,
+          generated_at: new Date().toISOString(),
+          metadata: {
+            total_marks: allQuestions.reduce((sum, q) => sum + (q.marks || 0), 0),
+            model_version: 'claude-3-haiku',
+            generated_at: new Date().toISOString(),
+            multi_topic: true,
+            topic_count: matches.length
+          }
+        };
+      }
+      
+      // Single topic query - extract details more flexibly
       const countMatch = query.match(/(\d+)/);
       const count = countMatch ? parseInt(countMatch[1]) : 5;
       
@@ -374,24 +425,107 @@ class ApiClient {
         tier = 'Higher';
       }
       
-      // Extract topic - use first recognizable topic or default to the query
-      const topics = ['algebra', 'number', 'geometry', 'statistics', 'probability', 'ratio'];
-      let topic = 'Algebra'; // default
+      // Extract topic - be more flexible with topic detection
+      // Complete list of ALL Edexcel GCSE topics
+      const knownTopics = [
+        // Numbers
+        'types of numbers', 'place value', 'addition', 'subtraction', 'bidmas', 'bodmas',
+        'decimals', 'long division', 'long multiplication', 'prime factors', 'lcm', 'hcf',
+        'fractions', 'percentages', 'rounding', 'ordering', 'recurring decimals', 'time',
+        'estimating', 'square roots', 'error interval', 'bounds', 'standard form', 'tips',
+        // Algebra
+        'like terms', 'powers', 'roots', 'indices', 'expanding', 'brackets', 'factorising',
+        'surds', 'rationalise', 'expressions', 'equations', 'formulae', 'solving', 'substitution',
+        'rearranging', 'quadratics', 'quadratic formula', 'difference of two squares',
+        'completing the square', 'algebraic fractions', 'sequences', 'nth term', 'geometric',
+        'inequalities', 'iterative', 'simultaneous', 'proof', 'functions', 'composite', 'inverse',
+        // Graphs
+        'gradients', 'straight line', 'coordinates', 'graphs', 'parallel', 'perpendicular',
+        'cubic', 'reciprocal', 'exponential', 'turning points', 'circle graphs', 'tangents',
+        'sin', 'cos', 'tan', 'transformations', 'distance-time', 'velocity-time', 'real-life',
+        'area under graph', 'line graphs',
+        // Ratio
+        'ratio', 'proportion', 'direct', 'inverse', 'reverse percentages', 'money',
+        'compound growth', 'decay', 'units', 'conversions', 'best buys', 'density', 'mass',
+        'volume', 'speed', 'distance', 'pressure', 'force', 'area',
+        // Geometry
+        'angles', 'geometry', 'corresponding', 'alternate', '2d shapes', 'quadrilaterals',
+        'interior', 'exterior', 'symmetry', 'areas', 'circles', 'perimeter', 'circle theorems',
+        'sector', 'segments', 'arcs', 'congruent', 'similar', 'enlargements', 'invariant',
+        '3d shapes', 'faces', 'edges', 'vertices', 'surface area', 'frustums', 'projections',
+        'plans', 'elevations', 'scale drawings', 'loci', 'construction', 'bearings',
+        // Trigonometry
+        'pythagoras', 'trigonometry', 'sine rule', 'cosine rule', '3d pythagoras', 'vectors',
+        'column vectors',
+        // Probability
+        'probability', 'outcomes', 'product rule', 'frequency trees', 'tree diagrams',
+        'conditional probability', 'two-way tables', 'relative frequency', 'venn diagrams',
+        'set notation',
+        // Statistics
+        'types of data', 'mean', 'median', 'mode', 'range', 'sampling', 'pictographs',
+        'capture-recapture', 'stem and leaf', 'frequency tables', 'grouped frequency',
+        'estimating mean', 'box plots', 'cumulative frequency', 'histograms', 'frequency polygon',
+        'bar graphs', 'scatter graphs', 'pie charts',
+        // Operations
+        'multiplication', 'division', 'multiply', 'divide', 'add', 'subtract'
+      ];
       
-      for (const t of topics) {
+      let topic = '';
+      let enrichedPrompt = query;
+      
+      // Try to find a known topic
+      for (const t of knownTopics) {
         if (query.toLowerCase().includes(t)) {
           topic = t.charAt(0).toUpperCase() + t.slice(1);
           break;
         }
       }
       
-      // Generate questions directly without InterpretLambda
+      // If no known topic found, extract the main subject from the query
+      if (!topic) {
+        // Remove numbers, tier words, and common words to find the topic
+        const cleanQuery = query
+          .replace(/\d+/g, '')
+          .replace(/foundation|higher|questions?|only/gi, '')
+          .trim();
+        
+        // Take the first meaningful word as the topic
+        const words = cleanQuery.split(/\s+/).filter(w => w.length > 2);
+        topic = words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Algebra';
+      }
+      
+      // For larger requests (>8 questions), force async processing for parallel generation
+      const forceAsync = count > 8;
+      
+      // Generate questions with parallel optimization
+      // Pass the full query as enriched_prompt so the AI understands the specific request
+      // IMPORTANT: Make the prompt very explicit about the requirements
+      let finalPrompt = enrichedPrompt;
+      
+      // If query contains specific operation keywords, emphasize them
+      const operationKeywords = ['addition only', 'subtraction only', 'multiplication only', 'division only', 'only addition', 'only subtraction', 'only multiplication', 'only division'];
+      const hasSpecificOperation = operationKeywords.some(keyword => enrichedPrompt.toLowerCase().includes(keyword));
+      
+      if (hasSpecificOperation) {
+        // Extract the operation
+        let operation = '';
+        if (enrichedPrompt.toLowerCase().includes('addition')) operation = 'addition';
+        else if (enrichedPrompt.toLowerCase().includes('subtraction')) operation = 'subtraction';
+        else if (enrichedPrompt.toLowerCase().includes('multiplication')) operation = 'multiplication';
+        else if (enrichedPrompt.toLowerCase().includes('division')) operation = 'division';
+        
+        // Make it VERY explicit
+        finalPrompt = `${enrichedPrompt}. CRITICAL: ALL questions MUST use ${operation.toUpperCase()} ONLY. Do NOT include any other operations like multiplication, division, subtraction, or addition. ONLY ${operation.toUpperCase()} operations are allowed.`;
+      }
+      
       const questions = await this.generateQuestions({
         topic,
         tier,
         count,
         specification_version: 'latest',
-        enriched_prompt: query, // Pass full query as enriched prompt
+        enriched_prompt: finalPrompt,
+        force_async: forceAsync,
+        parallel_processing: true
       });
       
       return questions;
@@ -522,6 +656,67 @@ class ApiClient {
       }
     } catch (error) {
       console.error('Export error:', error);
+      throw error;
+    }
+  }
+
+  // Question Retrieval methods
+  async retrieveQuestions(
+    topic: string,
+    grade: 'foundation' | 'higher',
+    paperType: 'P1' | 'P2' | 'P3',
+    difficultyMin: number = 1,
+    difficultyMax: number = 10,
+    excludeQuestionIds: string[] = [],
+    count: number = 5
+  ): Promise<QuestionResponse> {
+    if (!this.isAuthenticated()) {
+      throw new Error('Authentication required');
+    }
+    
+    try {
+      const request = {
+        topic,
+        grade,
+        paper_type: paperType,
+        difficulty_min: difficultyMin,
+        difficulty_max: difficultyMax,
+        exclude_question_ids: excludeQuestionIds,
+        count
+      };
+      
+      const response = await this.client.post('/retrieve-questions', request);
+      
+      // Transform retrieval response to QuestionResponse format
+      if (response.data.questions) {
+        return {
+          success: true,
+          questions: response.data.questions,
+          mark_scheme: [], // Will be generated from questions
+          session_id: `retrieval_${Date.now()}`,
+          request_id: `retrieval_${Date.now()}`,
+          generated_at: new Date().toISOString(),
+          metadata: {
+            ...response.data.metadata,
+            source: 'verified_bank',
+            model_version: 'verified',
+            generated_at: new Date().toISOString()
+          }
+        };
+      }
+      
+      throw new Error('No questions returned from retrieval');
+    } catch (error) {
+      // If retrieval fails (empty bank), fall back to generation
+      if (error instanceof Error && error.message?.includes('No verified questions available')) {
+        console.log('Question bank empty, falling back to generation');
+        return this.generateQuestions({
+          topic,
+          tier: grade === 'foundation' ? 'Foundation' : 'Higher',
+          count,
+          specification_version: 'latest'
+        });
+      }
       throw error;
     }
   }

@@ -282,3 +282,50 @@ If you encounter issues:
 Training your AI with high-quality, specification-aligned content is key to generating relevant, varied questions that truly test student understanding. The system is designed to learn from your expertise and replicate the quality and style of your best examples while ensuring full coverage of the curriculum requirements.
 
 Regular content updates and validation will keep your AI performing at its best, generating fresh questions that align with your teaching goals and assessment requirements.
+
+
+## Complete Edexcel GCSE Mathematics Topic List
+
+The AI has been trained on ALL official Edexcel GCSE Mathematics topics. When generating questions, the AI understands these specific topics and can create appropriate questions for each:
+
+### Numbers Domain
+Types of Numbers, Place Value, Addition and Subtraction, BIDMAS/BODMAS, Decimals (Addition/Subtraction, Multiplication/Division), Long Division, Long Multiplication, Prime Factors, LCM/HCF, Fractions, Fractions/Decimals/Percentages, Rounding Numbers, Ordering Numbers, Fractions and Recurring Decimals (H), Time, Estimating, Estimating Square Roots (H), Error Interval, Upper and Lower Bounds (H), Standard Form, Calculating Tips
+
+### Algebra Domain
+Collecting Like Terms, Powers and Roots, Rules of Indices (Negative Powers), Rules of Indices (Fractional Powers) (H), Expanding Single/Double/Triple Brackets, Factorising into Single Brackets, Surds (H), Forming Expressions/Equations/Formulae, Solving Equations, Substitution, Rearranging Formulas, Factorising Quadratics, Solving Quadratics, Quadratic Formula (H), Difference of Two Squares (H), Completing the Square (H), Algebraic Fractions (H), Sequences and Nth Term, Geometric Sequences (H), Quadratic Sequences (H), Inequalities, Quadratic Inequalities (H), Graphical Inequalities (H), Iterative Methods (H), Simultaneous Equations, Proof, Function Machines, Functions (H), Composite and Inverse Functions (H)
+
+### Equations and Graphs Domain
+Gradients, y=mx+c, Coordinates, Drawing Straight Line Graphs, Parallel/Perpendicular Lines, Quadratic/Cubic/Reciprocal Graphs, Exponential Graphs (H), Turning Points, Circle Graphs and Tangents (H), Trig Graphs (H), Solving Simultaneous Equations With Graphs, Graph Transformations (H), Distance-Time Graphs, Velocity-Time Graphs (H), Real-Life Graphs, Area Under a Graph (H), Line Graphs
+
+### Ratio Domain
+Ratio Basics/Harder, Direct and Inverse Proportion, Percentages, Reverse Percentages, Money, Compound Growth and Decay, Units and Conversions, Conversion Graphs, Best Buys, Density Mass Volume, Speed Distance Time, Pressure Force Area
+
+### Geometry Domain
+Angle Basics, Geometry Problems, Corresponding/Alternate Angles, 2D Shapes and Quadrilaterals, Interior/Exterior Angles, Symmetry, Areas of Shapes, Circles Perimeter, Circle Theorems (H), Circle Sector/Segments/Arcs, Congruent Shapes, Similar Shapes, Transformations, Negative Enlargements (H), Combinations of Transformations (H), Invariant Points (H), 3D Shapes, Volume/Surface Area, Frustums (H), Projections/Plans/Elevations, Scale Drawings, Loci and Construction, Bearings
+
+### Trigonometry Domain
+Pythagoras, Trigonometry, Trigonometry Common Values, Sine Rule (H), Cosine Rule (H), 3D Pythagoras and Trigonometry (H), Column Vectors, Vectors (H)
+
+### Probability Domain
+Probability Basics and Listing Outcomes, Product Rule (H), Frequency Trees, Probability and Tree Diagrams, Conditional Probability (H), Two-Way Tables, Relative Frequency, Venn Diagrams, Set Notation (H)
+
+### Statistics Domain
+Types of Data, Mean/Median/Mode/Range, Data Sampling, Pictographs, Capture-Recapture (H), Stem and Leaf, Frequency Tables, Grouped Frequency Tables, Estimating the Mean, Box Plots (H), Cumulative Frequency (H), Histograms (H), Frequency Polygon, Bar Graphs, Scatter Graphs, Pie Charts
+
+**Note:** (H) indicates Higher tier only topics
+
+## Using Specific Topics in Queries
+
+You can now request questions on ANY of these specific topics:
+
+**Examples:**
+- "5 fractions addition only"
+- "10 Higher surds rationalise"
+- "15 Foundation BIDMAS"
+- "8 circle theorems" (Higher only)
+- "12 quadratic formula" (Higher only)
+- "10 pythagoras 3D" (Higher only)
+- "5 stem and leaf"
+- "8 venn diagrams conditional probability" (Higher only)
+
+The AI will understand the specific topic and generate appropriate questions!

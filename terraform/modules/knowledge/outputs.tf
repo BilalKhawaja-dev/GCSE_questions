@@ -39,3 +39,22 @@ output "question_bank_bucket_arn" {
   description = "ARN of the S3 bucket for question bank"
   value       = aws_s3_bucket.question_bank.arn
 }
+
+# Bedrock Knowledge Base outputs are in bedrock_kb.tf
+# Removed duplicate output definition
+
+output "knowledge_base_arn" {
+  description = "Bedrock Knowledge Base ARN"
+  value       = try(aws_bedrockagent_knowledge_base.gcse_kb.arn, "")
+}
+
+output "data_source_id" {
+  description = "Knowledge Base Data Source ID"
+  value       = try(aws_bedrockagent_data_source.s3_source.id, "")
+}
+
+
+output "opensearch_collection_endpoint" {
+  description = "OpenSearch Serverless collection endpoint"
+  value       = try(aws_opensearchserverless_collection.kb_collection.collection_endpoint, "")
+}

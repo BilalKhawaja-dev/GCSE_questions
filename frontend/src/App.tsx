@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import HomePage from './pages/HomePage';
 import SessionHistoryPage from './pages/SessionHistoryPage';
 import TopicCoveragePage from './pages/TopicCoveragePage';
+import UploadContentPage from './pages/UploadContentPage';
 import AuthForm from './components/AuthForm';
 import ThemeToggle from './components/ThemeToggle';
 import './App.css';
@@ -106,6 +107,7 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/history" element={<SessionHistoryPage />} />
           <Route path="/coverage" element={<TopicCoveragePage />} />
+          <Route path="/upload" element={<UploadContentPage />} />
         </Routes>
       </main>
       

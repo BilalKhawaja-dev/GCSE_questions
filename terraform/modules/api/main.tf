@@ -287,7 +287,7 @@ resource "aws_iam_role_policy" "interpret_bedrock_policy" {
   })
 }
 
-# Bedrock policy for GenerateLambda (Sonnet only)
+# Bedrock policy for GenerateLambda (Haiku for speed)
 resource "aws_iam_role_policy" "generate_bedrock_policy" {
   name = "generate-bedrock-policy"
   role = aws_iam_role.generate_lambda_role.id
@@ -301,7 +301,7 @@ resource "aws_iam_role_policy" "generate_bedrock_policy" {
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream"
         ]
-        Resource = "arn:aws:bedrock:eu-west-2::foundation-model/${var.bedrock_model_sonnet}"
+        Resource = "arn:aws:bedrock:eu-west-2::foundation-model/${var.bedrock_model_haiku}"
       }
     ]
   })
@@ -623,7 +623,7 @@ resource "aws_iam_role_policy" "topic_coverage_dynamodb_policy" {
   })
 }
 
-# Bedrock policy for AsyncWorkerLambda (Sonnet only)
+# Bedrock policy for AsyncWorkerLambda (Haiku for speed)
 resource "aws_iam_role_policy" "async_worker_bedrock_policy" {
   name = "async-worker-bedrock-policy"
   role = aws_iam_role.async_worker_lambda_role.id
@@ -637,7 +637,7 @@ resource "aws_iam_role_policy" "async_worker_bedrock_policy" {
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream"
         ]
-        Resource = "arn:aws:bedrock:eu-west-2::foundation-model/${var.bedrock_model_sonnet}"
+        Resource = "arn:aws:bedrock:eu-west-2::foundation-model/${var.bedrock_model_haiku}"
       }
     ]
   })
@@ -818,11 +818,11 @@ resource "aws_iam_role_policy" "generate_s3_policy" {
 # InterpretLambda function
 resource "aws_lambda_function" "interpret_lambda" {
   function_name = "gcse-interpret-lambda-${var.environment}"
-  role         = aws_iam_role.interpret_lambda_role.arn
-  handler      = "src.lambda_handlers.interpret_lambda.lambda_handler"
-  runtime      = "python3.11"
-  timeout      = 30
-  memory_size  = 512
+  role          = aws_iam_role.interpret_lambda_role.arn
+  handler       = "src.lambda_handlers.interpret_lambda.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 30
+  memory_size   = 512
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
@@ -831,9 +831,9 @@ resource "aws_lambda_function" "interpret_lambda" {
     variables = {
       BEDROCK_MODEL_ID      = var.bedrock_model_haiku
       SPECIFICATIONS_BUCKET = var.specifications_bucket_name
-      EXAMPLES_BUCKET      = var.examples_bucket_name
-      REGION               = "eu-west-2"
-      ENVIRONMENT          = var.environment
+      EXAMPLES_BUCKET       = var.examples_bucket_name
+      REGION                = "eu-west-2"
+      ENVIRONMENT           = var.environment
     }
   }
 
@@ -847,11 +847,11 @@ resource "aws_lambda_function" "interpret_lambda" {
 # AuthLambda function
 resource "aws_lambda_function" "auth_lambda" {
   function_name = "gcse-auth-lambda-${var.environment}"
-  role         = aws_iam_role.auth_lambda_role.arn
-  handler      = "src.lambda_handlers.auth_lambda.lambda_handler"
-  runtime      = "python3.11"
-  timeout      = 30
-  memory_size  = 512
+  role          = aws_iam_role.auth_lambda_role.arn
+  handler       = "src.lambda_handlers.auth_lambda.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 30
+  memory_size   = 512
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
@@ -875,11 +875,11 @@ resource "aws_lambda_function" "auth_lambda" {
 # SessionLambda function
 resource "aws_lambda_function" "session_lambda" {
   function_name = "gcse-session-lambda-${var.environment}"
-  role         = aws_iam_role.session_lambda_role.arn
-  handler      = "src.lambda_handlers.session_lambda.lambda_handler"
-  runtime      = "python3.11"
-  timeout      = 30
-  memory_size  = 512
+  role          = aws_iam_role.session_lambda_role.arn
+  handler       = "src.lambda_handlers.session_lambda.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 30
+  memory_size   = 512
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
@@ -903,25 +903,25 @@ resource "aws_lambda_function" "session_lambda" {
 # GenerateLambda function
 resource "aws_lambda_function" "generate_lambda" {
   function_name = "gcse-generate-lambda-${var.environment}"
-  role         = aws_iam_role.generate_lambda_role.arn
-  handler      = "src.lambda_handlers.generate_lambda.lambda_handler"
-  runtime      = "python3.11"
-  timeout      = 300  # Increased to 5 minutes for large question sets
-  memory_size  = 1024
+  role          = aws_iam_role.generate_lambda_role.arn
+  handler       = "src.lambda_handlers.generate_lambda.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 300 # Increased to 5 minutes for large question sets
+  memory_size   = 1024
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
 
   environment {
     variables = {
-      BEDROCK_MODEL_ID         = var.bedrock_model_sonnet
-      SPECIFICATIONS_BUCKET    = var.specifications_bucket_name
-      EXAMPLES_BUCKET         = var.examples_bucket_name
-      SESSIONS_TABLE_NAME      = aws_dynamodb_table.sessions.name
+      BEDROCK_MODEL_ID          = var.bedrock_model_haiku
+      SPECIFICATIONS_BUCKET     = var.specifications_bucket_name
+      EXAMPLES_BUCKET           = var.examples_bucket_name
+      SESSIONS_TABLE_NAME       = aws_dynamodb_table.sessions.name
       TOPIC_COVERAGE_TABLE_NAME = aws_dynamodb_table.topic_coverage.name
-      ASYNC_QUEUE_URL          = aws_sqs_queue.async_generation_queue.url
-      REGION                  = "eu-west-2"
-      ENVIRONMENT             = var.environment
+      ASYNC_QUEUE_URL           = aws_sqs_queue.async_generation_queue.url
+      REGION                    = "eu-west-2"
+      ENVIRONMENT               = var.environment
     }
   }
 
@@ -935,11 +935,11 @@ resource "aws_lambda_function" "generate_lambda" {
 # FeedbackLambda function
 resource "aws_lambda_function" "feedback_lambda" {
   function_name = "gcse-feedback-lambda-${var.environment}"
-  role         = aws_iam_role.feedback_lambda_role.arn
-  handler      = "src.lambda_handlers.feedback_lambda.handler"
-  runtime      = "python3.11"
-  timeout      = 30
-  memory_size  = 512
+  role          = aws_iam_role.feedback_lambda_role.arn
+  handler       = "src.lambda_handlers.feedback_lambda.handler"
+  runtime       = "python3.11"
+  timeout       = 30
+  memory_size   = 512
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
@@ -963,11 +963,11 @@ resource "aws_lambda_function" "feedback_lambda" {
 # RefinementLambda function
 resource "aws_lambda_function" "refinement_lambda" {
   function_name = "gcse-refinement-lambda-${var.environment}"
-  role         = aws_iam_role.refinement_lambda_role.arn
-  handler      = "src.lambda_handlers.refinement_lambda.handler"
-  runtime      = "python3.11"
-  timeout      = 900  # 15 minutes for processing multiple questions
-  memory_size  = 1024
+  role          = aws_iam_role.refinement_lambda_role.arn
+  handler       = "src.lambda_handlers.refinement_lambda.handler"
+  runtime       = "python3.11"
+  timeout       = 900 # 15 minutes for processing multiple questions
+  memory_size   = 1024
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
@@ -993,11 +993,11 @@ resource "aws_lambda_function" "refinement_lambda" {
 # ExportLambda function
 resource "aws_lambda_function" "export_lambda" {
   function_name = "gcse-export-lambda-${var.environment}"
-  role         = aws_iam_role.export_lambda_role.arn
-  handler      = "src.lambda_handlers.export_lambda.handler"
-  runtime      = "python3.11"
-  timeout      = 300  # 5 minutes for PDF generation
-  memory_size  = 512
+  role          = aws_iam_role.export_lambda_role.arn
+  handler       = "src.lambda_handlers.export_lambda.handler"
+  runtime       = "python3.11"
+  timeout       = 300 # 5 minutes for PDF generation
+  memory_size   = 512
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
@@ -1021,11 +1021,11 @@ resource "aws_lambda_function" "export_lambda" {
 # TopicCoverageLambda function
 resource "aws_lambda_function" "topic_coverage_lambda" {
   function_name = "gcse-topic-coverage-lambda-${var.environment}"
-  role         = aws_iam_role.topic_coverage_lambda_role.arn
-  handler      = "src.lambda_handlers.topic_coverage_lambda.lambda_handler"
-  runtime      = "python3.11"
-  timeout      = 30
-  memory_size  = 512
+  role          = aws_iam_role.topic_coverage_lambda_role.arn
+  handler       = "src.lambda_handlers.topic_coverage_lambda.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 30
+  memory_size   = 512
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
@@ -1048,24 +1048,24 @@ resource "aws_lambda_function" "topic_coverage_lambda" {
 # AsyncWorkerLambda function for processing SQS messages
 resource "aws_lambda_function" "async_worker_lambda" {
   function_name = "gcse-async-worker-lambda-${var.environment}"
-  role         = aws_iam_role.async_worker_lambda_role.arn
-  handler      = "src.lambda_handlers.async_worker_lambda.lambda_handler"
-  runtime      = "python3.11"
-  timeout      = 300  # 5 minutes for question generation
-  memory_size  = 1024
+  role          = aws_iam_role.async_worker_lambda_role.arn
+  handler       = "src.lambda_handlers.async_worker_lambda.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 300 # 5 minutes for question generation
+  memory_size   = 1024
 
   s3_bucket = data.aws_s3_object.lambda_packages.bucket
   s3_key    = data.aws_s3_object.lambda_packages.key
 
   environment {
     variables = {
-      BEDROCK_MODEL_ID         = var.bedrock_model_sonnet
-      SPECIFICATIONS_BUCKET    = var.specifications_bucket_name
-      EXAMPLES_BUCKET         = var.examples_bucket_name
-      SESSIONS_TABLE_NAME      = aws_dynamodb_table.sessions.name
+      BEDROCK_MODEL_ID          = var.bedrock_model_haiku
+      SPECIFICATIONS_BUCKET     = var.specifications_bucket_name
+      EXAMPLES_BUCKET           = var.examples_bucket_name
+      SESSIONS_TABLE_NAME       = aws_dynamodb_table.sessions.name
       TOPIC_COVERAGE_TABLE_NAME = aws_dynamodb_table.topic_coverage.name
-      REGION                  = "eu-west-2"
-      ENVIRONMENT             = var.environment
+      REGION                    = "eu-west-2"
+      ENVIRONMENT               = var.environment
     }
   }
 
@@ -1080,11 +1080,11 @@ resource "aws_lambda_function" "async_worker_lambda" {
 resource "aws_lambda_event_source_mapping" "async_worker_sqs_trigger" {
   event_source_arn = aws_sqs_queue.async_generation_queue.arn
   function_name    = aws_lambda_function.async_worker_lambda.arn
-  batch_size       = 1  # Process one job at a time
+  batch_size       = 1 # Process one job at a time
   enabled          = true
 
   scaling_config {
-    maximum_concurrency = 5  # Allow up to 5 concurrent workers
+    maximum_concurrency = 5 # Allow up to 5 concurrent workers
   }
 }
 
@@ -1220,7 +1220,7 @@ resource "aws_lambda_permission" "allow_eventbridge_refinement" {
 resource "aws_sqs_queue" "async_generation_queue" {
   name                       = "gcse-async-generation-queue-${var.environment}"
   visibility_timeout_seconds = 900  # 15 minutes (3x Lambda timeout)
-  message_retention_seconds  = 3600  # 1 hour
+  message_retention_seconds  = 3600 # 1 hour
   receive_wait_time_seconds  = 20   # Long polling
 
   tags = {
@@ -1233,7 +1233,7 @@ resource "aws_sqs_queue" "async_generation_queue" {
 # Dead Letter Queue for async generation failures
 resource "aws_sqs_queue" "async_generation_dlq" {
   name                      = "gcse-async-generation-dlq-${var.environment}"
-  message_retention_seconds = 1209600  # 14 days
+  message_retention_seconds = 1209600 # 14 days
 
   tags = {
     Name        = "Async Generation DLQ"
@@ -1245,7 +1245,7 @@ resource "aws_sqs_queue" "async_generation_dlq" {
 # Dead Letter Queue for RefinementLambda error handling
 resource "aws_sqs_queue" "refinement_dlq" {
   name                      = "gcse-refinement-dlq-${var.environment}"
-  message_retention_seconds = 1209600  # 14 days
+  message_retention_seconds = 1209600 # 14 days
 
   tags = {
     Name        = "RefinementLambda DLQ"
@@ -1284,4 +1284,100 @@ resource "aws_iam_role_policy" "refinement_dlq_policy" {
       }
     ]
   })
+}
+
+# RetrievalLambda function
+resource "aws_lambda_function" "retrieval_lambda" {
+  function_name = "gcse-retrieval-lambda-${var.environment}"
+  role          = aws_iam_role.retrieval_lambda_role.arn
+  handler       = "src.lambda_handlers.retrieval_lambda.handler"
+  runtime       = "python3.11"
+  timeout       = 10 # Fast retrieval - 10 seconds max
+  memory_size   = 512
+
+  s3_bucket = data.aws_s3_object.lambda_packages.bucket
+  s3_key    = data.aws_s3_object.lambda_packages.key
+
+  environment {
+    variables = {
+      VERIFIED_QUESTIONS_TABLE = aws_dynamodb_table.verified_question_bank.name
+      REGION                   = "eu-west-2"
+      ENVIRONMENT              = var.environment
+    }
+  }
+
+  tags = {
+    Name        = "GCSE RetrievalLambda"
+    Environment = var.environment
+    Purpose     = "Fast question retrieval from verified bank"
+  }
+}
+
+# IAM role for RetrievalLambda
+resource "aws_iam_role" "retrieval_lambda_role" {
+  name = "gcse-retrieval-lambda-role-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "GCSE RetrievalLambda Role"
+    Environment = var.environment
+  }
+}
+
+# IAM policy for RetrievalLambda
+resource "aws_iam_role_policy" "retrieval_lambda_policy" {
+  name = "gcse-retrieval-lambda-policy-${var.environment}"
+  role = aws_iam_role.retrieval_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:*:*:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Query",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem"
+        ]
+        Resource = [
+          aws_dynamodb_table.verified_question_bank.arn,
+          "${aws_dynamodb_table.verified_question_bank.arn}/index/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach basic execution role
+resource "aws_iam_role_policy_attachment" "retrieval_lambda_basic_execution" {
+  role       = aws_iam_role.retrieval_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }

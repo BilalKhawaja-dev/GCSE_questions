@@ -1,0 +1,89 @@
+📊 GCSE Question Generator - Upload Status Report
+==================================================
+
+UPLOADED FILES:
+- Total: 23 files
+- PDFs uploaded via web: 2 files
+  • June 2017 QP.pdf (166 KB)
+  • PMT Mock 2 QP.pdf (3.7 MB)
+- JSON specifications: 21 files
+
+FOLDER STRUCTURE:
+📁 general/ - 2 PDFs (past papers uploaded by users)
+📁 specifications/ - 21 JSON files organized by domain:
+  - algebra/ (4 files)
+  - geometry/ (6 files)
+  - number/ (4 files)
+  - probability/ (2 files)
+  - ratio/ (2 files)
+  - statistics/ (3 files)
+
+HOW AI USES UPLOADED FILES:
+============================
+
+1. JSON Specification Files (Currently Active):
+   - AI reads these JSON files via ContentRetrievalService
+   - Each file contains:
+     • Learning objectives
+     • Key concepts
+     • Specification content
+     • Common misconceptions
+     • Assessment objectives
+   - Files are cached for 1 hour for performance
+   - Used to enrich prompts before question generation
+
+2. PDF Files (NOT YET INTEGRATED):
+   - PDFs are uploaded to S3 successfully ✅
+   - BUT: AI doesn't automatically read PDFs yet ❌
+   - Need to:
+     a) Extract text from PDFs
+     b) Index content in knowledge base
+     c) Connect to Bedrock knowledge base
+
+CURRENT AI WORKFLOW:
+====================
+1. User requests questions
+2. ContentRetrievalService fetches JSON specs from S3
+3. Specs enrich the prompt with:
+   - Learning objectives
+   - Key concepts
+   - Common misconceptions
+4. Enriched prompt sent to Bedrock
+5. Bedrock generates questions
+
+WHAT'S MISSING FOR PDF USAGE:
+==============================
+To make AI use uploaded PDFs, you need:
+
+1. PDF Text Extraction:
+   - Use AWS Textract or PyPDF2
+   - Extract text from uploaded PDFs
+   - Store extracted text
+
+2. Knowledge Base Integration:
+   - Set up Bedrock Knowledge Base
+   - Index PDF content
+   - Enable RAG (Retrieval Augmented Generation)
+
+3. Query Enhancement:
+   - Search knowledge base for relevant content
+   - Add to prompt context
+   - Generate questions based on real exam content
+
+RECOMMENDATION:
+===============
+Current system works well with JSON specs. To use PDFs:
+
+Option A (Quick): 
+- Manually extract key questions from PDFs
+- Add to JSON specification files
+- AI will use them immediately
+
+Option B (Advanced):
+- Set up Bedrock Knowledge Base
+- Enable automatic PDF indexing
+- Full RAG integration
+
+For now, the JSON specs are working and providing good context.
+The uploaded PDFs are stored safely and ready for future integration.
+

@@ -95,3 +95,27 @@ def sample_specification_content():
         assessment_objectives=["AO1", "AO2"],
         marks_range=[1, 4]
     )
+
+
+@pytest.fixture
+def mock_dynamodb():
+    """Mock DynamoDB resource for testing."""
+    from unittest.mock import Mock
+    mock = Mock()
+    return mock
+
+
+@pytest.fixture
+def mock_lambda_client():
+    """Mock Lambda client for testing."""
+    from unittest.mock import Mock
+    mock = Mock()
+    return mock
+
+
+@pytest.fixture
+def mock_sqs():
+    """Mock SQS client for testing."""
+    from unittest.mock import Mock
+    mock = Mock()
+    return mock

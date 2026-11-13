@@ -14,11 +14,11 @@ output "bedrock_models_available" {
   description = "Available Bedrock models"
   value = {
     haiku = {
-      model_id = data.aws_bedrock_foundation_model.haiku.model_id
+      model_id   = data.aws_bedrock_foundation_model.haiku.model_id
       model_name = data.aws_bedrock_foundation_model.haiku.model_name
     }
     sonnet = {
-      model_id = data.aws_bedrock_foundation_model.sonnet.model_id
+      model_id   = data.aws_bedrock_foundation_model.sonnet.model_id
       model_name = data.aws_bedrock_foundation_model.sonnet.model_name
     }
   }

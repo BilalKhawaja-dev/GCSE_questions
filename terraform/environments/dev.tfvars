@@ -15,4 +15,4 @@ cost_threshold_daily   = 5
 cost_threshold_monthly = 20
 
 # Alert configuration
-alert_email = "dev@example.com"  # Update with actual email
+alert_email = "dev@example.com" # Update with actual email

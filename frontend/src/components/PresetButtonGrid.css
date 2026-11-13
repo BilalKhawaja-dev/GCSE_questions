@@ -29,8 +29,8 @@
   position: relative;
   /* Add margin bottom to prevent dropdown overlap */
   margin-bottom: 0.5rem;
-  /* Ensure proper stacking */
-  z-index: 1;
+  /* Ensure proper stacking - CRITICAL for dropdown visibility */
+  z-index: auto;
   /* Ensure wrapper contains the dropdown */
   contain: layout;
 }
@@ -38,9 +38,12 @@
 .domain-box-wrapper:has(.topic-dropdown) {
   /* Add extra space when dropdown is open */
   margin-bottom: 1rem;
-  z-index: 100;
+  /* CRITICAL: High z-index to ensure dropdown appears above everything */
+  z-index: 10000;
   /* Ensure dropdown is fully visible */
   overflow: visible;
+  /* Break out of any stacking context */
+  isolation: isolate;
 }
 
 .domain-box {
@@ -92,7 +95,7 @@
   border: 2px solid var(--border-color);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  z-index: 9999;
   max-height: 300px;
   overflow-y: auto;
   animation: dropdownSlide 0.2s ease;
@@ -101,6 +104,9 @@
   /* Prevent dropdown from being affected by grid */
   margin: 0;
   padding: 0;
+  /* Ensure proper rendering */
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 @keyframes dropdownSlide {
@@ -157,7 +163,7 @@
   color: var(--text-primary);
 }
 
-/* Pink Floral Theme */
+/* Pink Floral Theme - ROSES ONLY */
 .preset-selector.pink-floral {
   position: relative;
   padding: 1.5rem;
@@ -171,9 +177,9 @@
   box-shadow: 0 8px 32px rgba(244, 114, 182, 0.15);
 }
 
-/* Decorative floral borders on sides */
+/* Decorative ROSES ONLY on sides - floating up and down */
 .preset-selector.pink-floral::before {
-  content: '🌹\A🌸\A🌺\A🌷\A🌹\A🌸';
+  content: '🌹\A🌹\A🌹\A🌹\A🌹\A🌹';
   white-space: pre;
   position: absolute;
   left: 5px;
@@ -182,12 +188,12 @@
   font-size: 1.5rem;
   line-height: 2.5rem;
   opacity: 0.4;
-  animation: floatSide 6s ease-in-out infinite;
+  animation: floatUpDown 6s ease-in-out infinite;
   filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.2));
 }
 
 .preset-selector.pink-floral::after {
-  content: '🌹\A🌸\A🌺\A🌷\A🌹\A🌸';
+  content: '🌹\A🌹\A🌹\A🌹\A🌹\A🌹';
   white-space: pre;
   position: absolute;
   right: 5px;
@@ -196,17 +202,17 @@
   font-size: 1.5rem;
   line-height: 2.5rem;
   opacity: 0.4;
-  animation: floatSide 6s ease-in-out infinite 3s;
+  animation: floatUpDown 6s ease-in-out infinite 3s;
   filter: drop-shadow(0 2px 4px rgba(244, 114, 182, 0.2));
 }
 
-/* Side floating animation */
-@keyframes floatSide {
+/* Floating up and down animation for roses */
+@keyframes floatUpDown {
   0%, 100% { 
-    transform: translateY(-50%) translateX(0px); 
+    transform: translateY(-50%) translateY(0px); 
   }
   50% { 
-    transform: translateY(-50%) translateX(3px); 
+    transform: translateY(-50%) translateY(-10px); 
   }
 }
 
@@ -268,9 +274,9 @@
   border-radius: 12px;
 }
 
-/* Add decorative floral corners */
+/* Add decorative ROSES ONLY in corners */
 .preset-selector.pink-floral .domain-boxes::before {
-  content: '🌸';
+  content: '🌹';
   position: absolute;
   top: -8px;
   left: -8px;
@@ -281,7 +287,7 @@
 }
 
 .preset-selector.pink-floral .domain-boxes::after {
-  content: '🌺';
+  content: '🌹';
   position: absolute;
   bottom: -8px;
   right: -8px;
@@ -407,7 +413,7 @@
 
 /* Add subtle rose icon to dropdown items */
 .preset-selector.pink-floral .topic-dropdown-item::after {
-  content: '🌸';
+  content: '🌹';
   position: absolute;
   right: 1rem;
   opacity: 0;

@@ -17,12 +17,12 @@ provider "aws" {
 # S3 bucket for Terraform state storage
 resource "aws_s3_bucket" "terraform_state" {
   bucket = "gcse-terraform-state-${random_id.bucket_suffix.hex}"
-  
+
   # Prevent accidental deletion
   lifecycle {
     prevent_destroy = true
   }
-  
+
   tags = {
     Name        = "Terraform State Bucket"
     Purpose     = "Store Terraform state files"
@@ -66,9 +66,9 @@ resource "aws_s3_bucket_public_access_block" "terraform_state_pab" {
 
 # DynamoDB table for state locking
 resource "aws_dynamodb_table" "terraform_locks" {
-  name           = "terraform-locks"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "LockID"
+  name         = "terraform-locks"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
 
   attribute {
     name = "LockID"
@@ -84,11 +84,11 @@ resource "aws_dynamodb_table" "terraform_locks" {
 
 # Output the bucket name for backend configuration
 output "terraform_state_bucket" {
-  value = aws_s3_bucket.terraform_state.bucket
+  value       = aws_s3_bucket.terraform_state.bucket
   description = "Name of the S3 bucket for Terraform state"
 }
 
 output "dynamodb_table" {
-  value = aws_dynamodb_table.terraform_locks.name
+  value       = aws_dynamodb_table.terraform_locks.name
   description = "Name of the DynamoDB table for state locking"
 }

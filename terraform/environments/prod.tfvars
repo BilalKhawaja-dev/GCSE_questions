@@ -15,7 +15,7 @@ cost_threshold_daily   = 20
 cost_threshold_monthly = 50
 
 # Alert configuration
-alert_email = "bilalkwj@example.com"  # Update with actual email
+alert_email = "bilalkwj@example.com" # Update with actual email
 
 # Disable auto-scaling temporarily to fix deployment
 enable_dynamodb_autoscaling = false

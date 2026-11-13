@@ -69,19 +69,22 @@ def lambda_handler(event, context):
             return create_error_response(400, "Count must be between 1 and 50", request_id)
         
         # Determine if we should use async mode based on count or explicit request
-        # Use async processing for requests > 8 questions via SQS
-        # Keep threshold low to avoid API Gateway timeouts
-        use_async = count > 8 or async_mode
+        # Use parallel async processing for requests > 5 questions via SQS
+        # Lower threshold for better performance
+        force_async = body.get('force_async', False)
+        parallel_processing = body.get('parallel_processing', False)
+        use_async = count > 5 or async_mode or force_async
         
         if use_async:
-            # For large requests, send to SQS and return immediately with job ID
+            # For larger requests, send to SQS with parallel processing flag
             return handle_async_generation_sqs(
                 topic=topic,
                 tier=tier,
                 count=count,
                 enriched_prompt=enriched_prompt,
                 user_id=user_id,
-                request_id=request_id
+                request_id=request_id,
+                parallel_processing=parallel_processing
             )
         
         # For smaller requests, process synchronously
@@ -309,15 +312,16 @@ def handle_async_processing(event, context):
         }
 
 
-def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prompt: str, user_id: str, request_id: str) -> dict:
+def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prompt: str, 
+                              user_id: str, request_id: str, parallel_processing: bool = False) -> dict:
     """
-    Handle asynchronous question generation using SQS.
+    Handle asynchronous question generation using SQS with parallel processing support.
     Sends message to SQS queue and returns immediately with job ID.
     """
     import boto3
     from datetime import datetime, timedelta
     
-    logger.info(f"Starting async generation via SQS for {count} questions - Request ID: {request_id}")
+    logger.info(f"Starting async generation via SQS for {count} questions - Request ID: {request_id}, Parallel: {parallel_processing}")
     
     # Create a job ID for tracking
     job_id = f"job_{request_id}"
@@ -325,6 +329,14 @@ def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prom
     try:
         from src.services.session_service import SessionService
         session_service = SessionService(region=AWS_REGION)
+        
+        # Estimate completion time based on parallel processing
+        if parallel_processing and count > 8:
+            # Parallel processing is much faster
+            estimated_minutes = max(1, count // 10)  # ~10 questions per minute with parallel
+        else:
+            # Sequential processing
+            estimated_minutes = max(1, count // 3)   # ~3 questions per minute sequential
         
         # Create initial job record with pending status
         job_metadata = {
@@ -334,14 +346,15 @@ def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prom
             'tier': tier,
             'count': count,
             'progress': 0,
+            'parallel_processing': parallel_processing,
             'created_at': datetime.utcnow().isoformat(),
-            'estimated_completion': (datetime.utcnow() + timedelta(minutes=3)).isoformat()
+            'estimated_completion': (datetime.utcnow() + timedelta(minutes=estimated_minutes)).isoformat()
         }
         
         # Create session to track job
         session_id = session_service.create_session(
             user_id=user_id,
-            query=f"Async generation: {count} {tier} {topic} questions",
+            query=f"Async generation: {count} {tier} {topic} questions {'(parallel)' if parallel_processing else ''}",
             generated_questions=[],  # Empty initially
             metadata=job_metadata,
             request_id=request_id
@@ -349,7 +362,12 @@ def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prom
         
         # Send message to SQS queue
         sqs_client = boto3.client('sqs', region_name=AWS_REGION)
-        queue_url = os.environ.get('ASYNC_QUEUE_URL')
+        
+        # Use different queue for parallel processing if available
+        if parallel_processing:
+            queue_url = os.environ.get('PARALLEL_ASYNC_QUEUE_URL') or os.environ.get('ASYNC_QUEUE_URL')
+        else:
+            queue_url = os.environ.get('ASYNC_QUEUE_URL')
         
         if not queue_url:
             raise ValueError("ASYNC_QUEUE_URL environment variable not set")
@@ -362,7 +380,8 @@ def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prom
             'count': count,
             'enriched_prompt': enriched_prompt,
             'user_id': user_id,
-            'request_id': request_id
+            'request_id': request_id,
+            'parallel_processing': parallel_processing
         }
         
         response = sqs_client.send_message(
@@ -376,11 +395,15 @@ def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prom
                 'user_id': {
                     'StringValue': user_id,
                     'DataType': 'String'
+                },
+                'parallel_processing': {
+                    'StringValue': str(parallel_processing),
+                    'DataType': 'String'
                 }
             }
         )
         
-        logger.info(f"Message sent to SQS - Job ID: {job_id}, Message ID: {response['MessageId']}")
+        logger.info(f"Message sent to SQS - Job ID: {job_id}, Message ID: {response['MessageId']}, Parallel: {parallel_processing}")
         
         # Return immediately with job information
         response_body = {
@@ -389,12 +412,13 @@ def handle_async_generation_sqs(topic: str, tier: str, count: int, enriched_prom
             'job_id': job_id,
             'session_id': session_id,
             'status': 'pending',
-            'estimated_completion_minutes': 3,
+            'estimated_completion_minutes': estimated_minutes,
             'progress': 0,
-            'message': f'Large request ({count} questions) is being processed asynchronously. Use the session_id to check status.',
+            'parallel_processing': parallel_processing,
+            'message': f'Large request ({count} questions) is being processed asynchronously{"with parallel processing" if parallel_processing else ""}. Use the session_id to check status.',
             'polling_info': {
                 'check_status_endpoint': f'/user/sessions/{session_id}',
-                'recommended_poll_interval_seconds': 5,
+                'recommended_poll_interval_seconds': 3 if parallel_processing else 5,
                 'max_wait_time_minutes': 5
             },
             'request_id': request_id,
@@ -838,14 +862,19 @@ def parse_bedrock_response(response: str, topic: str, tier: str, request_id: str
     """Parse Bedrock response into question objects."""
     import re
     
-    # Try to extract JSON from the response
     try:
+        # Clean control characters from response (Haiku sometimes includes them)
+        cleaned_response = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response)
+        
         # Look for JSON array in the response
-        json_match = re.search(r'\[[\s\S]*\]', response)
+        json_match = re.search(r'\[[\s\S]*\]', cleaned_response)
         if json_match:
-            questions_data = json.loads(json_match.group())
+            json_str = json_match.group()
         else:
-            questions_data = json.loads(response)
+            json_str = cleaned_response
+        
+        # Parse JSON
+        questions_data = json.loads(json_str)
         
         questions = []
         for i, q in enumerate(questions_data):

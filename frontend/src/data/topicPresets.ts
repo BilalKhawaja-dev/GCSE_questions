@@ -76,6 +76,56 @@ export const TOPIC_PRESETS: TopicPreset[] = [
     higherQuery: '5 Higher indices questions',
     allQuery: '5 indices questions'
   },
+  {
+    id: 'bidmas',
+    title: 'BIDMAS',
+    domain: 'number',
+    tier: 'both',
+    icon: '( )',
+    foundationQuery: '5 Foundation BIDMAS questions',
+    higherQuery: '5 Higher BIDMAS questions',
+    allQuery: '5 BIDMAS questions'
+  },
+  {
+    id: 'prime-factors',
+    title: 'Prime Factors',
+    domain: 'number',
+    tier: 'both',
+    icon: '2×3',
+    foundationQuery: '5 Foundation prime factors questions',
+    higherQuery: '5 Higher prime factors questions',
+    allQuery: '5 prime factors questions'
+  },
+  {
+    id: 'lcm-hcf',
+    title: 'LCM & HCF',
+    domain: 'number',
+    tier: 'both',
+    icon: '∩∪',
+    foundationQuery: '5 Foundation LCM and HCF questions',
+    higherQuery: '5 Higher LCM and HCF questions',
+    allQuery: '5 LCM and HCF questions'
+  },
+  {
+    id: 'rounding',
+    title: 'Rounding',
+    domain: 'number',
+    tier: 'both',
+    icon: '≈',
+    foundationQuery: '5 Foundation rounding questions',
+    higherQuery: '5 Higher rounding questions',
+    allQuery: '5 rounding questions'
+  },
+  {
+    id: 'bounds',
+    title: 'Upper & Lower Bounds',
+    domain: 'number',
+    tier: 'higher',
+    icon: '±',
+    foundationQuery: '5 Foundation bounds questions',
+    higherQuery: '5 Higher bounds questions',
+    allQuery: '5 bounds questions'
+  },
   
   // Algebra Domain
   {
@@ -137,6 +187,46 @@ export const TOPIC_PRESETS: TopicPreset[] = [
     foundationQuery: '5 Foundation graphs questions',
     higherQuery: '5 Higher graphs questions',
     allQuery: '5 graphs questions'
+  },
+  {
+    id: 'expanding-brackets',
+    title: 'Expanding Brackets',
+    domain: 'algebra',
+    tier: 'both',
+    icon: '( )',
+    foundationQuery: '5 Foundation expanding brackets questions',
+    higherQuery: '5 Higher expanding brackets questions',
+    allQuery: '5 expanding brackets questions'
+  },
+  {
+    id: 'factorising',
+    title: 'Factorising',
+    domain: 'algebra',
+    tier: 'both',
+    icon: '[ ]',
+    foundationQuery: '5 Foundation factorising questions',
+    higherQuery: '5 Higher factorising questions',
+    allQuery: '5 factorising questions'
+  },
+  {
+    id: 'rearranging-formulae',
+    title: 'Rearranging Formulae',
+    domain: 'algebra',
+    tier: 'both',
+    icon: '⇄',
+    foundationQuery: '5 Foundation rearranging formulae questions',
+    higherQuery: '5 Higher rearranging formulae questions',
+    allQuery: '5 rearranging formulae questions'
+  },
+  {
+    id: 'functions',
+    title: 'Functions',
+    domain: 'algebra',
+    tier: 'higher',
+    icon: 'f(x)',
+    foundationQuery: '5 Foundation functions questions',
+    higherQuery: '5 Higher functions questions',
+    allQuery: '5 functions questions'
   },
   
   // Ratio & Proportion Domain
@@ -232,6 +322,46 @@ export const TOPIC_PRESETS: TopicPreset[] = [
     higherQuery: '5 Higher transformations questions',
     allQuery: '5 transformations questions'
   },
+  {
+    id: 'angles',
+    title: 'Angles',
+    domain: 'geometry',
+    tier: 'both',
+    icon: '∠',
+    foundationQuery: '5 Foundation angles questions',
+    higherQuery: '5 Higher angles questions',
+    allQuery: '5 angles questions'
+  },
+  {
+    id: '3d-shapes',
+    title: '3D Shapes',
+    domain: 'geometry',
+    tier: 'both',
+    icon: '🔷',
+    foundationQuery: '5 Foundation 3D shapes questions',
+    higherQuery: '5 Higher 3D shapes questions',
+    allQuery: '5 3D shapes questions'
+  },
+  {
+    id: 'bearings',
+    title: 'Bearings',
+    domain: 'geometry',
+    tier: 'both',
+    icon: '🧭',
+    foundationQuery: '5 Foundation bearings questions',
+    higherQuery: '5 Higher bearings questions',
+    allQuery: '5 bearings questions'
+  },
+  {
+    id: 'similar-shapes',
+    title: 'Similar Shapes',
+    domain: 'geometry',
+    tier: 'both',
+    icon: '△≅',
+    foundationQuery: '5 Foundation similar shapes questions',
+    higherQuery: '5 Higher similar shapes questions',
+    allQuery: '5 similar shapes questions'
+  },
   
   // Probability Domain
   {
@@ -315,6 +445,46 @@ export const TOPIC_PRESETS: TopicPreset[] = [
     foundationQuery: '5 Foundation cumulative frequency questions',
     higherQuery: '5 Higher cumulative frequency questions',
     allQuery: '5 cumulative frequency questions'
+  },
+  {
+    id: 'histograms',
+    title: 'Histograms',
+    domain: 'statistics',
+    tier: 'higher',
+    icon: '▂▄▆',
+    foundationQuery: '5 Foundation histograms questions',
+    higherQuery: '5 Higher histograms questions',
+    allQuery: '5 histograms questions'
+  },
+  {
+    id: 'box-plots',
+    title: 'Box Plots',
+    domain: 'statistics',
+    tier: 'higher',
+    icon: '⊟',
+    foundationQuery: '5 Foundation box plots questions',
+    higherQuery: '5 Higher box plots questions',
+    allQuery: '5 box plots questions'
+  },
+  {
+    id: 'stem-leaf',
+    title: 'Stem & Leaf',
+    domain: 'statistics',
+    tier: 'both',
+    icon: '🌿',
+    foundationQuery: '5 Foundation stem and leaf questions',
+    higherQuery: '5 Higher stem and leaf questions',
+    allQuery: '5 stem and leaf questions'
+  },
+  {
+    id: 'pie-charts',
+    title: 'Pie Charts',
+    domain: 'statistics',
+    tier: 'both',
+    icon: '🥧',
+    foundationQuery: '5 Foundation pie charts questions',
+    higherQuery: '5 Higher pie charts questions',
+    allQuery: '5 pie charts questions'
   }
 ];
 

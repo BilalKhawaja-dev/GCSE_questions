@@ -328,3 +328,121 @@
     display: none;
   }
 }
+
+
+/* New Grade-Based Filter Styles */
+.tier-selection {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tier-btn {
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.tier-btn:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.tier-btn.active {
+  background: #4b5563;
+  border-color: #374151;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.grade-dropdown-wrapper {
+  position: relative;
+}
+
+.grade-dropdown-trigger {
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  min-width: 140px;
+  text-align: left;
+}
+
+.grade-dropdown-trigger:hover {
+  background: #2563eb;
+}
+
+.grade-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  min-width: 140px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.grade-dropdown-item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: white;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.9rem;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.grade-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.grade-dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+.grade-dropdown-item.active {
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+
+/* Grade dropdown select */
+.grade-dropdown {
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  border: 2px solid #2563eb;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.grade-dropdown:hover {
+  background: #2563eb;
+  border-color: #1d4ed8;
+}
+
+.grade-dropdown:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}

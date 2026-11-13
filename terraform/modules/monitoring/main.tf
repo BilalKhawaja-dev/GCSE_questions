@@ -3,7 +3,7 @@
 # SNS topic for alerts
 resource "aws_sns_topic" "alerts" {
   name = "gcse-alerts-${var.environment}"
-  
+
   tags = {
     Name        = "GCSE Alerts"
     Environment = var.environment
@@ -144,7 +144,7 @@ resource "aws_cloudwatch_dashboard" "gcse_dashboard" {
           }
         }
       },
-      
+
       # Lambda Performance Metrics - Core Functions
       {
         type   = "metric"
@@ -410,7 +410,7 @@ resource "aws_cloudwatch_dashboard" "gcse_dashboard" {
           ]
           view    = "timeSeries"
           stacked = false
-          region  = "us-east-1"  # CloudFront metrics are in us-east-1
+          region  = "us-east-1" # CloudFront metrics are in us-east-1
           title   = "CloudFront Performance"
           period  = 300
           stat    = "Average"
@@ -426,10 +426,10 @@ resource "aws_cloudwatch_dashboard" "gcse_dashboard" {
         height = 6
 
         properties = {
-          query   = "SOURCE '/aws/lambda/${var.interpret_lambda_name}' | SOURCE '/aws/lambda/${var.generate_lambda_name}' | SOURCE '/aws/lambda/${var.refinement_lambda_name}' | fields @timestamp, @message | filter @message like /bedrock/ or @message like /token/ | stats count() by bin(5m)"
-          region  = "eu-west-2"
-          title   = "Bedrock API Usage (Logs Insights)"
-          view    = "table"
+          query  = "SOURCE '/aws/lambda/${var.interpret_lambda_name}' | SOURCE '/aws/lambda/${var.generate_lambda_name}' | SOURCE '/aws/lambda/${var.refinement_lambda_name}' | fields @timestamp, @message | filter @message like /bedrock/ or @message like /token/ | stats count() by bin(5m)"
+          region = "eu-west-2"
+          title  = "Bedrock API Usage (Logs Insights)"
+          view   = "table"
         }
       },
 
@@ -512,7 +512,7 @@ resource "aws_cloudwatch_dashboard" "cost_dashboard" {
           ]
           view    = "timeSeries"
           stacked = true
-          region  = "us-east-1"  # Billing metrics are in us-east-1
+          region  = "us-east-1" # Billing metrics are in us-east-1
           title   = "Estimated Daily Costs by Service (USD)"
           period  = 86400
           stat    = "Maximum"
@@ -828,7 +828,7 @@ resource "aws_cloudwatch_metric_alarm" "bedrock_daily_cost_alarm" {
   namespace           = "AWS/Billing"
   period              = "86400"
   statistic           = "Maximum"
-  threshold           = 0.75  # $0.75 per day for Bedrock (£18/month target)
+  threshold           = 0.75 # $0.75 per day for Bedrock (£18/month target)
   alarm_description   = "Bedrock daily cost exceeded $0.75"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -852,7 +852,7 @@ resource "aws_cloudwatch_metric_alarm" "dynamodb_daily_cost_alarm" {
   namespace           = "AWS/Billing"
   period              = "86400"
   statistic           = "Maximum"
-  threshold           = 0.50  # $0.50 per day for DynamoDB
+  threshold           = 0.50 # $0.50 per day for DynamoDB
   alarm_description   = "DynamoDB daily cost exceeded $0.50"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -876,7 +876,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_warning_interpret" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Average"
-  threshold           = "25000"  # 25 seconds (approaching 30s timeout)
+  threshold           = "25000" # 25 seconds (approaching 30s timeout)
   alarm_description   = "InterpretLambda duration approaching timeout"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -898,7 +898,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_warning_generate" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Average"
-  threshold           = "50000"  # 50 seconds (approaching 60s timeout)
+  threshold           = "50000" # 50 seconds (approaching 60s timeout)
   alarm_description   = "GenerateLambda duration approaching timeout"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -920,7 +920,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_warning_auth" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Average"
-  threshold           = "5000"  # 5 seconds for auth operations
+  threshold           = "5000" # 5 seconds for auth operations
   alarm_description   = "AuthLambda duration > 5 seconds"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -943,7 +943,7 @@ resource "aws_cloudwatch_metric_alarm" "question_generation_success_rate" {
   namespace           = "GCSE/QuestionGeneration"
   period              = "300"
   statistic           = "Average"
-  threshold           = "90"  # 90% success rate
+  threshold           = "90" # 90% success rate
   alarm_description   = "Question generation success rate < 90%"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -965,7 +965,7 @@ resource "aws_cloudwatch_metric_alarm" "api_gateway_latency_warning" {
   namespace           = "AWS/ApiGateway"
   period              = "300"
   statistic           = "Average"
-  threshold           = "10000"  # 10 seconds
+  threshold           = "10000" # 10 seconds
   alarm_description   = "API Gateway latency > 10 seconds"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -1011,7 +1011,7 @@ resource "aws_cloudwatch_metric_alarm" "monthly_cost_warning" {
   namespace           = "AWS/Billing"
   period              = "86400"
   statistic           = "Maximum"
-  threshold           = var.cost_threshold_monthly * 0.8  # 80% of monthly threshold
+  threshold           = var.cost_threshold_monthly * 0.8 # 80% of monthly threshold
   alarm_description   = "Monthly cost approaching limit (80% of £${var.cost_threshold_monthly})"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -1056,7 +1056,7 @@ resource "aws_appautoscaling_target" "users_table_write" {
 
 resource "aws_appautoscaling_target" "sessions_table_read" {
   count              = var.enable_dynamodb_autoscaling ? 1 : 0
-  max_capacity       = var.dynamodb_max_read_capacity * 2  # Sessions table needs more capacity
+  max_capacity       = var.dynamodb_max_read_capacity * 2 # Sessions table needs more capacity
   min_capacity       = var.dynamodb_min_read_capacity
   resource_id        = "table/gcse-generator-v2-sessions-${var.environment}"
   scalable_dimension = "dynamodb:table:ReadCapacityUnits"
@@ -1070,7 +1070,7 @@ resource "aws_appautoscaling_target" "sessions_table_read" {
 
 resource "aws_appautoscaling_target" "sessions_table_write" {
   count              = var.enable_dynamodb_autoscaling ? 1 : 0
-  max_capacity       = var.dynamodb_max_write_capacity * 2  # Sessions table needs more capacity
+  max_capacity       = var.dynamodb_max_write_capacity * 2 # Sessions table needs more capacity
   min_capacity       = var.dynamodb_min_write_capacity
   resource_id        = "table/gcse-generator-v2-sessions-${var.environment}"
   scalable_dimension = "dynamodb:table:WriteCapacityUnits"
@@ -1229,7 +1229,7 @@ resource "aws_cloudwatch_metric_alarm" "dynamodb_scaling_alarm" {
   namespace           = "AWS/DynamoDB"
   period              = "300"
   statistic           = "Sum"
-  threshold           = var.dynamodb_max_read_capacity * 0.8  # 80% of max capacity
+  threshold           = var.dynamodb_max_read_capacity * 0.8 # 80% of max capacity
   alarm_description   = "DynamoDB scaling approaching maximum capacity"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -1326,7 +1326,7 @@ resource "aws_cloudwatch_metric_alarm" "user_registration_spike" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Sum"
-  threshold           = "50"  # More than 50 registrations in 5 minutes
+  threshold           = "50" # More than 50 registrations in 5 minutes
   alarm_description   = "Unusual user registration activity detected"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -1347,9 +1347,9 @@ resource "aws_cloudwatch_metric_alarm" "question_quality_degradation" {
   evaluation_periods  = "3"
   metric_name         = "AverageQuality"
   namespace           = "GCSE/Quality"
-  period              = "900"  # 15 minutes
+  period              = "900" # 15 minutes
   statistic           = "Average"
-  threshold           = "0.7"  # Quality score below 70%
+  threshold           = "0.7" # Quality score below 70%
   alarm_description   = "Question quality has degraded below acceptable threshold"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -1395,7 +1395,7 @@ resource "aws_cloudwatch_metric_alarm" "api_gateway_4xx_errors" {
   namespace           = "AWS/ApiGateway"
   period              = "300"
   statistic           = "Sum"
-  threshold           = "20"  # More than 20 4xx errors in 5 minutes
+  threshold           = "20" # More than 20 4xx errors in 5 minutes
   alarm_description   = "High rate of API Gateway 4xx errors"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -1418,7 +1418,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_cold_starts" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Maximum"
-  threshold           = "15000"  # 15 seconds indicates cold starts
+  threshold           = "15000" # 15 seconds indicates cold starts
   alarm_description   = "High Lambda cold start times detected"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 

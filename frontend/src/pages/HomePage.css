@@ -11,6 +11,24 @@
 
 .query-section {
   margin-bottom: 2rem;
+  /* CRITICAL: Allow dropdowns to overflow and be visible */
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+/* Add spacing between preset buttons and query input */
+.query-section > *:not(:last-child) {
+  margin-bottom: 1.5rem;
+}
+
+/* Ensure preset selector has reasonable bottom margin */
+.preset-selector {
+  margin-bottom: 1.5rem !important;
+  padding-bottom: 0.5rem;
+  /* CRITICAL: Ensure high z-index */
+  position: relative;
+  z-index: 100;
 }
 
 .controls-row {
@@ -186,6 +204,10 @@
 
 .quick-actions {
   margin-bottom: 3rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .quick-action-link {
@@ -200,6 +222,10 @@
   font-weight: 500;
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.quick-action-link.upload-link {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
 }
 
 .quick-action-link:hover {

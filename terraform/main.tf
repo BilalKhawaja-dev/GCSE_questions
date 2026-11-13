@@ -14,7 +14,7 @@ terraform {
 # Configure AWS Provider for London region
 provider "aws" {
   region = var.aws_region
-  
+
   default_tags {
     tags = {
       Project     = "GCSE-Question-Generator"
@@ -33,7 +33,7 @@ data "aws_region" "current" {}
 # Frontend module - S3 + CloudFront
 module "frontend" {
   source = "./modules/frontend"
-  
+
   environment = var.environment
   domain_name = var.domain_name
 }
@@ -41,37 +41,44 @@ module "frontend" {
 # API module - API Gateway + Lambda functions
 module "api" {
   source = "./modules/api"
-  
-  environment                   = var.environment
-  specifications_bucket_name    = module.knowledge.specifications_bucket_name
-  examples_bucket_name          = module.knowledge.examples_bucket_name
-  lambda_packages_bucket_name   = module.knowledge.lambda_packages_bucket_name
-  question_bank_bucket_name     = module.knowledge.question_bank_bucket_name
-  bedrock_model_haiku           = var.bedrock_model_haiku
-  bedrock_model_sonnet          = var.bedrock_model_sonnet
+
+  project_name                = var.project_name
+  environment                 = var.environment
+  aws_region                  = var.aws_region
+  specifications_bucket_name  = module.knowledge.specifications_bucket_name
+  examples_bucket_name        = module.knowledge.examples_bucket_name
+  lambda_packages_bucket_name = module.knowledge.lambda_packages_bucket_name
+  question_bank_bucket_name   = module.knowledge.question_bank_bucket_name
+  bedrock_model_haiku         = var.bedrock_model_haiku
+  bedrock_model_sonnet        = var.bedrock_model_sonnet
+  lambda_package_path         = "${path.root}/lambda-package/lambda-functions.zip"
+  knowledge_base_id           = var.knowledge_base_id
 }
 
 # AI module - Bedrock configurations
 module "ai" {
   source = "./modules/ai"
-  
-  environment           = var.environment
-  bedrock_model_haiku   = var.bedrock_model_haiku
-  bedrock_model_sonnet  = var.bedrock_model_sonnet
+
+  environment          = var.environment
+  bedrock_model_haiku  = var.bedrock_model_haiku
+  bedrock_model_sonnet = var.bedrock_model_sonnet
 }
 
 # Knowledge module - S3 buckets for specifications and examples
 module "knowledge" {
   source = "./modules/knowledge"
-  
+
   environment = var.environment
+  specifications_bucket_name = "gcse-specifications-prod-1a64dc99"
+  specifications_bucket_arn  = "arn:aws:s3:::gcse-specifications-prod-1a64dc99"
 }
 
 # Monitoring module - CloudWatch dashboards, alarms, SNS
 module "monitoring" {
   source = "./modules/monitoring"
-  
-  environment                  = var.environment
+
+  project_name                = var.project_name
+  environment                 = var.environment
   api_gateway_id              = module.api.api_gateway_id
   api_gateway_name            = module.api.api_gateway_name
   interpret_lambda_name       = module.api.interpret_lambda_name

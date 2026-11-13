@@ -3,7 +3,7 @@
 # S3 bucket for frontend assets
 resource "aws_s3_bucket" "frontend_assets" {
   bucket = "gcse-frontend-assets-${var.environment}-${random_id.bucket_suffix.hex}"
-  
+
   tags = {
     Name        = "GCSE Frontend Assets"
     Environment = var.environment
@@ -65,7 +65,7 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  
+
   # Custom domain configuration (optional)
   aliases = var.domain_name != "" ? [var.domain_name] : []
 
@@ -84,8 +84,8 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
     }
 
     min_ttl     = 0
-    default_ttl = 3600    # 1 hour
-    max_ttl     = 86400   # 24 hours
+    default_ttl = 3600  # 1 hour
+    max_ttl     = 86400 # 24 hours
   }
 
   # Cache behavior for static assets (longer TTL)
@@ -104,12 +104,12 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
       }
     }
 
-    min_ttl     = 31536000  # 1 year
-    default_ttl = 31536000  # 1 year
-    max_ttl     = 31536000  # 1 year
+    min_ttl     = 31536000 # 1 year
+    default_ttl = 31536000 # 1 year
+    max_ttl     = 31536000 # 1 year
   }
 
-  price_class = "PriceClass_100"  # Use only North America and Europe edge locations
+  price_class = "PriceClass_100" # Use only North America and Europe edge locations
 
   restrictions {
     geo_restriction {

@@ -26,7 +26,7 @@ resource "aws_kms_alias" "s3_key_alias" {
 # S3 bucket for GCSE specifications
 resource "aws_s3_bucket" "specifications" {
   bucket = "gcse-specifications-${var.environment}-${random_id.bucket_suffix.hex}"
-  
+
   tags = {
     Name        = "GCSE Specifications"
     Environment = var.environment
@@ -37,7 +37,7 @@ resource "aws_s3_bucket" "specifications" {
 # S3 bucket for seed examples
 resource "aws_s3_bucket" "examples" {
   bucket = "gcse-examples-${var.environment}-${random_id.bucket_suffix.hex}"
-  
+
   tags = {
     Name        = "GCSE Examples"
     Environment = var.environment
@@ -48,7 +48,7 @@ resource "aws_s3_bucket" "examples" {
 # S3 bucket for Lambda deployment packages
 resource "aws_s3_bucket" "lambda_packages" {
   bucket = "gcse-lambda-packages-${var.environment}-${random_id.bucket_suffix.hex}"
-  
+
   tags = {
     Name        = "GCSE Lambda Packages"
     Environment = var.environment
@@ -59,7 +59,7 @@ resource "aws_s3_bucket" "lambda_packages" {
 # S3 bucket for question bank (AI learning dataset)
 resource "aws_s3_bucket" "question_bank" {
   bucket = "gcse-question-bank-${var.environment}-${random_id.bucket_suffix.hex}"
-  
+
   tags = {
     Name        = "GCSE Question Bank"
     Environment = var.environment
@@ -308,7 +308,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "specifications_lifecycle" {
     }
 
     noncurrent_version_expiration {
-      noncurrent_days = 90  # Keep previous versions for 90 days as per requirements
+      noncurrent_days = 90 # Keep previous versions for 90 days as per requirements
     }
   }
 
@@ -339,7 +339,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "examples_lifecycle" {
     }
 
     noncurrent_version_expiration {
-      noncurrent_days = 30  # Keep deleted content for 30 days as per requirements
+      noncurrent_days = 30 # Keep deleted content for 30 days as per requirements
     }
   }
 
@@ -370,7 +370,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "lambda_packages_lifecycle" {
     }
 
     noncurrent_version_expiration {
-      noncurrent_days = 7  # Keep old deployment packages for 7 days
+      noncurrent_days = 7 # Keep old deployment packages for 7 days
     }
   }
 
@@ -420,7 +420,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "question_bank_lifecycle" {
     }
 
     noncurrent_version_expiration {
-      noncurrent_days = 365  # Keep old versions for 1 year for AI learning
+      noncurrent_days = 365 # Keep old versions for 1 year for AI learning
     }
   }
 

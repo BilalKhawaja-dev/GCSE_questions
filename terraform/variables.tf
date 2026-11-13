@@ -1,5 +1,11 @@
 # Input variables for GCSE Question Generator infrastructure
 
+variable "project_name" {
+  description = "Project name used for resource naming"
+  type        = string
+  default     = "gcse-question-generator"
+}
+
 variable "aws_region" {
   description = "AWS region for deployment (London for data residency)"
   type        = string
@@ -57,4 +63,10 @@ variable "enable_dynamodb_autoscaling" {
   description = "Enable DynamoDB auto-scaling (requires provisioned billing mode)"
   type        = bool
   default     = false
+}
+
+variable "knowledge_base_id" {
+  description = "Bedrock Knowledge Base ID for content retrieval"
+  type        = string
+  default     = ""
 }

@@ -228,3 +228,11 @@ docker-compose.override.yml
 
 # Kiro IDE files (if any remain)
 .kiro/
+*.tfstate.backup
+cdk.out/
+tfplan
+tfplan.out
+*.tfplan
+lambda-package/
+__pycache__/
+*.pyc

@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from src.services.bedrock_service import BedrockService
 from src.services.session_service import SessionService
@@ -19,9 +20,10 @@ logger.setLevel(logging.INFO)
 AWS_REGION = os.environ.get('AWS_REGION', os.environ.get('REGION', 'eu-west-2'))
 SESSIONS_TABLE_NAME = os.environ.get('SESSIONS_TABLE_NAME')
 TOPIC_COVERAGE_TABLE_NAME = os.environ.get('TOPIC_COVERAGE_TABLE_NAME')
+KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID')
 
 # Initialize services
-bedrock_service = BedrockService(region=AWS_REGION)
+bedrock_service = BedrockService(region=AWS_REGION, knowledge_base_id=KNOWLEDGE_BASE_ID)
 session_service = SessionService(region=AWS_REGION)
 coverage_service = TopicCoverageService(region=AWS_REGION, table_name=TOPIC_COVERAGE_TABLE_NAME) if TOPIC_COVERAGE_TABLE_NAME else None
 
@@ -61,14 +63,16 @@ def lambda_handler(event, context):
                 count=count
             )
             
-            # Generate questions
+            # Generate questions in parallel
             start_time = time.time()
-            questions = generate_questions_with_bedrock(
+            questions = generate_questions_parallel(
                 topic=topic,
                 tier=tier,
                 count=count,
                 enriched_prompt=enriched_prompt,
-                request_id=request_id
+                request_id=request_id,
+                job_id=job_id,
+                session_id=session_id
             )
             generation_time = time.time() - start_time
             
@@ -251,17 +255,34 @@ QUESTION GENERATION RULES:
 
 For each question, provide:
 1. The question text (clear, exam-style wording with unique context)
-2. The number of marks (typically 2-6 marks)
+2. The number of marks - MUST match question complexity:
+   - 2 marks: Simple, single-step calculation
+   - 3 marks: Two-step problem or requires showing working
+   - 4 marks: Multi-step problem with reasoning
+   - 5 marks: Complex problem requiring multiple methods
+   - 6 marks: Extended problem with justification/proof
 3. A difficulty score from 1-10 ({tier} tier: {'1-5' if tier == 'Foundation' else '6-10'})
 4. The correct answer with full working/solution
+
+CRITICAL MARK ALLOCATION:
+- Higher marks = More complex questions with multiple steps
+- Lower marks = Simpler, more direct questions
+- Question complexity MUST justify the mark value
+- Vary marks across the set (don't use same value for all)
 
 Return the questions as a JSON array with this structure:
 [
   {{
-    "question_text": "The question text here with unique context",
-    "marks": 4,
-    "difficulty_score": 5,
-    "answer": "Step-by-step solution with final answer"
+    "question_text": "Simple calculation question (2 marks)",
+    "marks": 2,
+    "difficulty_score": 3,
+    "answer": "Direct answer with brief working"
+  }},
+  {{
+    "question_text": "Multi-step problem requiring reasoning and showing all working (5 marks)",
+    "marks": 5,
+    "difficulty_score": 7,
+    "answer": "Detailed step-by-step solution with justification"
   }}
 ]
 
@@ -393,7 +414,8 @@ DIVERSITY REQUIREMENTS:
 - Use varied numerical values (not just 2, 3, 5, 10)
 - Create engaging real-world contexts
 - Mix calculation, reasoning, and problem-solving questions
-- Vary difficulty within the {tier} tier range
+- VARY difficulty within the {tier} tier range (grades {'1-5' if tier == 'Foundation' else '4-9'})
+- VARY marks allocation (2, 3, 4, 5, or 6 marks - NOT always 4!)
 - Ensure each question is structurally different
 
 For each question, provide:
@@ -434,23 +456,58 @@ Only return the JSON array, no other text."""
 
 
 def parse_bedrock_response(response: str, topic: str, tier: str, request_id: str) -> list:
-    """Parse Bedrock response into question objects."""
+    """Parse Bedrock response into question objects with improved error handling."""
     import re
     
     try:
+        # Log the raw response for debugging
+        logger.info(f"Parsing Bedrock response (length: {len(response)} chars)")
+        logger.debug(f"Raw response preview: {response[:500]}")
+        
+        # Clean control characters from response (Haiku sometimes includes them)
+        cleaned_response = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response)
+        
         # Look for JSON array in the response
-        json_match = re.search(r'\[[\s\S]*\]', response)
+        json_match = re.search(r'\[[\s\S]*\]', cleaned_response)
         if json_match:
-            questions_data = json.loads(json_match.group())
+            json_str = json_match.group()
         else:
-            questions_data = json.loads(response)
+            # Try to extract just the JSON part if wrapped in text
+            json_str = cleaned_response.strip()
+            if not json_str.startswith('['):
+                # Look for array start
+                start_idx = json_str.find('[')
+                end_idx = json_str.rfind(']')
+                if start_idx >= 0 and end_idx > start_idx:
+                    json_str = json_str[start_idx:end_idx+1]
+                else:
+                    logger.error(f"No JSON array found in response")
+                    raise ValueError("No JSON array found in Bedrock response")
+        
+        # Parse JSON
+        questions_data = json.loads(json_str)
+        
+        if not isinstance(questions_data, list):
+            logger.error(f"Parsed data is not a list: {type(questions_data)}")
+            raise ValueError("Bedrock response is not a JSON array")
+        
+        if len(questions_data) == 0:
+            logger.error("Bedrock returned empty array")
+            raise ValueError("Bedrock returned no questions")
         
         questions = []
         for i, q in enumerate(questions_data):
+            # Validate question has required fields
+            question_text = q.get('question_text', q.get('text', ''))
+            
+            if not question_text or len(question_text) < 10:
+                logger.warning(f"Question {i} has invalid or missing text")
+                continue
+            
             question = {
                 'id': f'q_{request_id}_{i}',
-                'question_text': q.get('question_text', q.get('text', '')),
-                'text': q.get('question_text', q.get('text', '')),
+                'question_text': question_text,
+                'text': question_text,
                 'marks': q.get('marks', 4),
                 'topic': topic,
                 'tier': tier,
@@ -459,10 +516,16 @@ def parse_bedrock_response(response: str, topic: str, tier: str, request_id: str
             }
             questions.append(question)
         
+        if len(questions) == 0:
+            logger.error("No valid questions after parsing")
+            raise ValueError("No valid questions in Bedrock response")
+        
+        logger.info(f"Successfully parsed {len(questions)} questions from Bedrock")
         return questions
         
-    except (json.JSONDecodeError, KeyError) as e:
-        logger.warning(f"Failed to parse Bedrock response: {str(e)}")
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        logger.error(f"Failed to parse Bedrock response: {str(e)}")
+        logger.error(f"Response preview: {response[:1000]}")
         raise ValueError(f"Failed to parse question response: {str(e)}")
 
 
@@ -511,3 +574,279 @@ def generate_mark_schemes(questions: list) -> list:
         mark_schemes.append(mark_scheme)
     
     return mark_schemes
+
+def generate_questions_parallel(topic: str, tier: str, count: int, enriched_prompt: str, 
+                              request_id: str, job_id: str, session_id: str) -> list:
+    """Generate questions using parallel processing for maximum speed."""
+    
+    # For small counts, use single batch
+    if count <= 8:
+        return generate_single_batch_optimized(topic, tier, count, enriched_prompt, request_id, 0)
+    
+    # Determine optimal parallel strategy
+    if count <= 15:
+        # Use 3 parallel batches
+        batch_size = max(3, count // 3)
+        max_workers = 3
+    elif count <= 30:
+        # Use 4 parallel batches  
+        batch_size = max(4, count // 4)
+        max_workers = 4
+    else:
+        # Use 5 parallel batches for large requests
+        batch_size = max(6, count // 5)
+        max_workers = 5
+    
+    # Create batch specifications
+    batches = []
+    remaining = count
+    batch_idx = 0
+    
+    while remaining > 0:
+        current_batch_size = min(batch_size, remaining)
+        batches.append({
+            'batch_idx': batch_idx,
+            'start_idx': count - remaining,
+            'batch_size': current_batch_size,
+            'batch_request_id': f"{request_id}_parallel_{batch_idx}"
+        })
+        remaining -= current_batch_size
+        batch_idx += 1
+    
+    logger.info(f"Processing {count} questions in {len(batches)} parallel batches with {max_workers} workers")
+    
+    # Progress tracking
+    def update_progress(completed_batches):
+        progress = 10 + int((completed_batches / len(batches)) * 80)  # 10-90% range
+        update_job_status(
+            session_id=session_id,
+            status='processing',
+            progress=progress,
+            job_id=job_id
+        )
+    
+    # Execute batches in parallel
+    all_questions = []
+    completed_count = 0
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all batch jobs
+        future_to_batch = {
+            executor.submit(
+                generate_single_batch_optimized,
+                topic, tier, batch['batch_size'], enriched_prompt,
+                batch['batch_request_id'], batch['start_idx']
+            ): batch for batch in batches
+        }
+        
+        # Collect results as they complete
+        for future in as_completed(future_to_batch):
+            batch = future_to_batch[future]
+            try:
+                batch_questions = future.result()
+                all_questions.extend(batch_questions)
+                completed_count += 1
+                
+                logger.info(f"Batch {batch['batch_idx'] + 1}/{len(batches)} completed: {len(batch_questions)} questions")
+                
+                # Update progress
+                update_progress(completed_count)
+                
+            except Exception as e:
+                logger.error(f"Batch {batch['batch_idx']} failed: {str(e)}")
+                # Add fallback questions for failed batch
+                fallback_questions = generate_fallback_questions(
+                    topic, tier, batch['batch_size'], 
+                    batch['batch_request_id'], batch['start_idx']
+                )
+                all_questions.extend(fallback_questions)
+                completed_count += 1
+                update_progress(completed_count)
+    
+    # Sort questions by their original index to maintain order
+    all_questions.sort(key=lambda q: int(q.get('id', '0').split('_')[-1]))
+    
+    logger.info(f"Parallel processing completed: {len(all_questions)} questions generated")
+    return all_questions[:count]
+
+
+def generate_single_batch_optimized(topic: str, tier: str, count: int, enriched_prompt: str, 
+                                  batch_request_id: str, start_index: int) -> list:
+    """Generate a single batch of questions with optimized prompting."""
+    import random
+    import hashlib
+    
+    # Create unique seed for this batch
+    seed_string = f"{batch_request_id}_{time.time()}_{random.random()}"
+    seed_hash = hashlib.md5(seed_string.encode()).hexdigest()[:8]
+    
+    # Optimized prompt for faster generation
+    base_prompt = f"""Generate {count} GCSE Mathematics exam questions for {tier} tier on {topic}.
+
+SPEED OPTIMIZATION: Generate questions efficiently with clear structure.
+Seed: {seed_hash}
+
+{enriched_prompt if enriched_prompt else ''}
+
+REQUIREMENTS:
+- Each question must be unique and exam-appropriate
+- Use realistic contexts and varied numerical values
+- Appropriate difficulty for {tier} tier
+- Clear, concise question text
+
+Return ONLY this JSON array:
+[
+  {{
+    "question_text": "Question text here",
+    "marks": 4,
+    "difficulty_score": 5,
+    "answer": "Solution with final answer"
+  }}
+]"""
+
+    # Enrich with Knowledge Base content
+    prompt = bedrock_service.enrich_prompt_with_kb(
+        base_prompt=base_prompt,
+        topic=topic,
+        tier=tier,
+        request_id=batch_request_id
+    )
+
+    try:
+        # Call Bedrock with optimized settings for speed
+        response = bedrock_service.call_bedrock_with_retry(
+            prompt, batch_request_id, 
+            temperature=0.7,
+            max_tokens=4000  # Limit tokens for faster response
+        )
+        
+        # Parse the response
+        questions = parse_bedrock_response_optimized(response, topic, tier, batch_request_id, start_index)
+        
+        return questions
+        
+    except Exception as e:
+        logger.error(f"Batch generation failed for {batch_request_id}: {str(e)}")
+        # Return fallback questions for this batch
+        return generate_fallback_questions(topic, tier, count, batch_request_id, start_index)
+
+
+def parse_bedrock_response_optimized(response: str, topic: str, tier: str, 
+                                   request_id: str, start_index: int) -> list:
+    """Optimized parsing with robust error handling and JSON repair."""
+    import re
+    import json
+    
+    try:
+        logger.info(f"Parsing Bedrock response (length: {len(response)} chars)")
+        
+        # Clean control characters (Haiku fix)
+        cleaned_response = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response)
+        
+        # Strategy 1: Try to parse complete JSON array
+        json_match = re.search(r'\[[\s\S]*?\]', cleaned_response)
+        if json_match:
+            json_str = json_match.group()
+            
+            # Try to fix common JSON errors
+            # Remove trailing commas
+            json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+            # Fix missing commas between objects
+            json_str = re.sub(r'}\s*{', '},{', json_str)
+            
+            try:
+                questions_data = json.loads(json_str)
+                if isinstance(questions_data, list) and len(questions_data) > 0:
+                    return build_valid_questions(questions_data, topic, tier, request_id, start_index)
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON parse failed even after fixes: {str(e)}")
+        
+        # Strategy 2: Extract individual question objects
+        logger.info("Trying individual question extraction")
+        question_pattern = r'\{\s*"question_text"\s*:\s*"[^"]+"\s*,\s*"marks"\s*:\s*\d+\s*,\s*"difficulty_score"\s*:\s*\d+\s*,\s*"answer"\s*:\s*"[^"]+"\s*\}'
+        question_matches = re.findall(question_pattern, cleaned_response, re.DOTALL)
+        
+        if question_matches:
+            questions_data = []
+            for match in question_matches:
+                try:
+                    q_obj = json.loads(match)
+                    questions_data.append(q_obj)
+                except:
+                    continue
+            
+            if len(questions_data) > 0:
+                logger.info(f"Extracted {len(questions_data)} questions individually")
+                return build_valid_questions(questions_data, topic, tier, request_id, start_index)
+        
+        # Strategy 3: More lenient extraction
+        logger.info("Trying lenient extraction")
+        lenient_pattern = r'\{[^{}]*?"question_text"[^{}]*?\}'
+        lenient_matches = re.findall(lenient_pattern, cleaned_response)
+        
+        if lenient_matches:
+            questions_data = []
+            for match in lenient_matches:
+                try:
+                    # Try to fix the JSON before parsing
+                    fixed_match = re.sub(r',(\s*})', r'\1', match)
+                    q_obj = json.loads(fixed_match)
+                    if q_obj.get('question_text'):
+                        questions_data.append(q_obj)
+                except:
+                    continue
+            
+            if len(questions_data) > 0:
+                logger.info(f"Lenient extraction succeeded: {len(questions_data)} questions")
+                return build_valid_questions(questions_data, topic, tier, request_id, start_index)
+        
+        # All strategies failed - log and raise
+        logger.error(f"All parsing strategies failed")
+        logger.error(f"Response preview: {cleaned_response[:1000]}")
+        raise ValueError("Could not extract any valid questions from Bedrock response")
+        
+    except Exception as e:
+        logger.error(f"Parse error: {str(e)}")
+        raise
+
+
+def build_valid_questions(questions_data: list, topic: str, tier: str, request_id: str, start_index: int) -> list:
+    """Build and validate question objects from parsed data."""
+    questions = []
+    
+    for i, q in enumerate(questions_data):
+        # Get question text
+        question_text = q.get('question_text', q.get('text', ''))
+        
+        # Validate question text
+        if not question_text or len(question_text) < 10:
+            logger.warning(f"Question {i} has invalid text, skipping")
+            continue
+        
+        # Filter out generic placeholders
+        generic_phrases = [
+            'solve this', 'calculate the answer to this', 'show your working for this',
+            'explain your method', 'find the solution to this', 'work out the answer'
+        ]
+        
+        is_generic = any(phrase in question_text.lower() for phrase in generic_phrases)
+        if is_generic and len(question_text) < 50:  # Short + generic = placeholder
+            logger.warning(f"Question {i} appears to be a placeholder, skipping")
+            continue
+        
+        question = {
+            'id': f'q_{request_id}_{start_index + i}',
+            'question_text': question_text,
+            'text': question_text,
+            'marks': q.get('marks', 4),
+            'topic': topic,
+            'tier': tier,
+            'difficulty_score': q.get('difficulty_score', 5),
+            'answer': q.get('answer', 'Answer not provided')
+        }
+        questions.append(question)
+    
+    if len(questions) == 0:
+        raise ValueError("No valid questions after filtering placeholders")
+    
+    return questions

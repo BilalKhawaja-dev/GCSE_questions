@@ -13,6 +13,7 @@ from typing import Dict, Any
 import boto3
 from botocore.exceptions import ClientError
 from src.utils.security import get_cors_response_headers
+from src.services.verification_metrics_service import verification_metrics_service
 
 # Configure logging
 logger = logging.getLogger()
@@ -74,6 +75,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         helpful = body['helpful']
         difficulty_rating = body.get('difficulty_rating', 5)  # Default to 5 if not provided
         comments = body.get('comments', '')
+        issue_reported = body.get('issue_reported', False)
+        issue_type = body.get('issue_type', '')
+        issue_description = body.get('issue_description', '')
         
         # Validate difficulty rating range if provided
         if not isinstance(difficulty_rating, int) or not (1 <= difficulty_rating <= 10):
@@ -88,7 +92,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             difficulty_rating=difficulty_rating,
             comments=comments,
             timestamp=timestamp,
-            session_token=session_token
+            session_token=session_token,
+            issue_reported=issue_reported,
+            issue_type=issue_type,
+            issue_description=issue_description
         )
         
         if not feedback_stored:
@@ -96,6 +103,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # Update quality scores
         updated_quality_score = update_quality_scores(question_id)
+        
+        # Record user feedback metrics
+        verification_metrics_service.record_user_feedback(
+            question_id=question_id,
+            helpful=helpful,
+            difficulty_rating=difficulty_rating if difficulty_rating != 5 else None,
+            issue_reported=issue_reported
+        )
         
         logger.info(f"Successfully processed feedback for question {question_id}")
         
@@ -117,7 +132,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return create_error_response(500, f"Internal server error: {str(e)}")
 
 def store_feedback(question_id: str, user_id: str, helpful: bool, difficulty_rating: int, 
-                  comments: str, timestamp: int, session_token: str) -> bool:
+                  comments: str, timestamp: int, session_token: str, issue_reported: bool = False,
+                  issue_type: str = '', issue_description: str = '') -> bool:
     """Store user feedback in DynamoDB QuestionFeedback table"""
     try:
         feedback_table = dynamodb.Table(QUESTION_FEEDBACK_TABLE)
@@ -126,22 +142,30 @@ def store_feedback(question_id: str, user_id: str, helpful: bool, difficulty_rat
         pk = f"FEEDBACK#{question_id}"
         sk = f"USER#{user_id}#{timestamp}"
         
-        # Store feedback item
-        feedback_table.put_item(
-            Item={
-                'pk': pk,
-                'sk': sk,
-                'question_id': question_id,
-                'user_id': user_id,
-                'helpful': helpful,
-                'difficulty_rating': difficulty_rating,
-                'comments': comments,
-                'timestamp': timestamp,
-                'session_token': session_token
-            }
-        )
+        # Build feedback item
+        item = {
+            'pk': pk,
+            'sk': sk,
+            'question_id': question_id,
+            'user_id': user_id,
+            'helpful': helpful,
+            'difficulty_rating': difficulty_rating,
+            'comments': comments,
+            'timestamp': timestamp,
+            'session_token': session_token,
+            'issue_reported': issue_reported
+        }
         
-        logger.info(f"Stored feedback for question {question_id} from user {user_id}")
+        # Add issue details if reported
+        if issue_reported:
+            item['issue_type'] = issue_type
+            item['issue_description'] = issue_description
+            item['issue_status'] = 'pending_review'
+        
+        # Store feedback item
+        feedback_table.put_item(Item=item)
+        
+        logger.info(f"Stored feedback for question {question_id} from user {user_id}, issue_reported={issue_reported}")
         return True
         
     except ClientError as e:

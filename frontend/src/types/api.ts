@@ -44,6 +44,8 @@ export interface QuestionResponse {
     async_generation?: boolean;
     job_id?: string;
     generation_time?: number;
+    multi_topic?: boolean;
+    topic_count?: number;
   };
   // Async response fields
   async?: boolean;
@@ -86,6 +88,8 @@ export interface GenerateRequest {
   specification_version?: string;
   user_id?: string;
   session_token?: string;
+  force_async?: boolean;
+  parallel_processing?: boolean;
 }
 
 // Authentication Types
